@@ -1,10 +1,11 @@
 #
-# The first attempt at compiling a haydn UEFI volume.
+# Compile a haydn UEFI volume.
 #
-# This workflow is expected to fail, and that is the point: everything up to
-# now has been checked by tests that need nothing but Python, and the questions
-# left (does haydnPkg assemble? which DXE drivers are missing? does the FD
-# link?) can only be answered by edk2 itself.
+# Everything else in this repository is checked by tests that need nothing but
+# Python. The questions those cannot answer -- does haydnPkg assemble, which DXE
+# drivers are missing, does the FD link -- are answered here, and after runs 6
+# and 7 the answer to all three is yes: edk2 builds the volume and the FD comes
+# out at the full 0x200000.
 #
 # What it does, in the order that makes the first failure informative:
 #
@@ -82,13 +83,18 @@ jobs:
           echo 'none'
 
   # --------------------------------------------------------------------------
-  # The build. Expected to fail on its first run; the log is the deliverable.
+  # The build itself.
+  #
+  # This used to be marked "expected to fail", because everything it could do
+  # was produce a log. Runs 6 and 7 changed that:
+  # edk2 links the volume, 48 images verify, and SILICIUM_UEFI.fd comes out at
+  # the full 0x200000. So the job is now honest -- a red run means the firmware
+  # did not build, and a green one leaves the .fd and the .img as artifacts.
   # --------------------------------------------------------------------------
   uefi:
-    name: UEFI (expected to fail on the first run)
+    name: UEFI
     runs-on: ubuntu-24.04
     needs: checks
-    continue-on-error: true
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -189,17 +195,13 @@ jobs:
           grep -oiE '[A-Za-z0-9_./-]+\.(inf|dec|fdf|dsc)' /tmp/build.log | sort -u >> out/summary.txt 2>&1 || true
           cat out/summary.txt
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: uefi-build-log
-          path: out/
-          compression-level: 9
-
       # The volume and the boot image are the deliverable once the build is
       # green. Both are kept: the .fd is the firmware itself, and the .img is
       # what `fastboot boot` takes -- BootShim prepends itself, so the image
       # boots in RAM and leaves the flash alone.
+      #
+      # This must run BEFORE the upload below, or the artifact carries the log
+      # and not the firmware.
       - name: If it built, keep the volume
         if: success()
         run: |
@@ -209,3 +211,10 @@ jobs:
           cp Mu-Silicium/Mu-haydn.img out/ 2>/dev/null || \
             find Mu-Silicium -maxdepth 1 -name 'Mu-haydn*.img' -exec cp {} out/ \;
           ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: uefi-build-log
+          path: out/
+          compression-level: 9
