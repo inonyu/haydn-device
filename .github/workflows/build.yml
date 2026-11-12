@@ -212,6 +212,18 @@ jobs:
             find Mu-Silicium -maxdepth 1 -name 'Mu-haydn*.img' -exec cp {} out/ \;
           ls -la out/
 
+      # A green edk2 run says the package assembled and the FD linked. It does
+      # not say the volume is this board's, and both ways that can go wrong are
+      # silent: a wrong length, or a sibling board's tables inside it because
+      # Binaries/ was seeded from venus. So check the bytes, not the exit code.
+      - name: Check the volume is this board's
+        if: success()
+        run: |
+          fd=$(find out -name 'SILICIUM_UEFI.fd' | head -1)
+          img=$(find out -maxdepth 1 -name 'Mu-haydn*.img' | head -1)
+          echo "fd=$fd img=$img"
+          python3 haydn/scripts/verify-volume.py "$fd" "$img"
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
