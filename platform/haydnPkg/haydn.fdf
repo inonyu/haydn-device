@@ -1,12 +1,12 @@
 #
 # The FDF for haydn.
 #
-# Structured after venusPkg's (Platforms/Xiaomi/venusPkg/venus.fdf in
-# Project-Silicium/Mu-Silicium), which is the same SoC. The difference that
-# matters: this one leaves out UniXNUPkg and DarwinBootPkg. Those are UniXNU's
-# own packages and are not in the Mu-Silicium tree, so a first build has to
-# succeed without them -- it produces a UEFI that brings the board up and
-# stops, which is the right first milestone.
+# Structured after Platforms/Xiaomi/viliPkg/vili.fdf in
+# Project-Silicium/Mu-Silicium -- the same SoC. The difference that matters:
+# this one leaves out UniXNUPkg and DarwinBootPkg. Those are UniXNU's own
+# packages and are not in the Mu-Silicium tree, so a first build has to succeed
+# without them; it produces a UEFI that brings the board up and stops, which is
+# the right first milestone.
 #
 # Uncomment the two lines at the bottom once those packages exist.
 #
@@ -24,7 +24,8 @@ BlockSize     = 0x1000
 NumBlocks     = $(FD_BLOCKS)
 
 #
-# The whole device is one compressed volume, the shape venus.fdf uses.
+# The whole device is one compressed volume, the shape venus.fdf and vili.fdf
+# both use.
 #
 0x00000000|$(FD_SIZE)
 gArmTokenSpaceGuid.PcdFvBaseAddress|gArmTokenSpaceGuid.PcdFvSize
@@ -55,11 +56,17 @@ READ_LOCK_STATUS   = TRUE
   !include Include/DXE.inc
   !include Include/RAW.inc
 
-  # BDS
+  # RAM Manager
+  INF SiliciumPkg/Drivers/RamManagerDxe/RamManagerDxe.inf
+
+  # SMBIOS
   INF MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
   INF SiliciumPkg/Drivers/SmBiosTableDxe/SmBiosTableDxe.inf
 
-  # ACPI
+  # ACPI. No AcpiTables.inf yet: there is no haydn ACPI package, and
+  # fabricating one from another board's tables is exactly the mistake
+  # docs/hardware.md warns about. The drivers go in so the tables can be
+  # registered the day the package exists.
   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   INF MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
 
