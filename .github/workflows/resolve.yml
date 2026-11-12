@@ -1,5 +1,5 @@
-# Resolve the build graph on a macOS runner, and run the repository's own
-# tests.
+# Resolve the build graph against a UniXNU checkout, and run the
+# repository's own tests.
 #
 # This is not a boot test and it does not touch a phone. It answers two
 # questions nothing on a Windows host can: does the configuration resolve
@@ -19,7 +19,12 @@ on:
 jobs:
   status:
     name: unixnu status --json
-    runs-on: macos-14
+    # ubuntu, not macos: this job only parses the board configuration with
+    # Python. It used to ask for macos-14, which this account cannot run
+    # ("The configuration 'macos-14-arm64-us-default' is not supported"), and
+    # the run was cancelled before it started. The kernel step is the one that
+    # needs a Mac, and that is not here.
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Check out the device repository
@@ -97,8 +102,14 @@ jobs:
             echo 'CI one: see README.'
             exit 0
           fi
-          python3 scripts/gen-reserved.py docs/haydn-fdt.dts > /tmp/gen.dtsi
-          diff -u dts/haydn-reserved.dtsi /tmp/gen.dtsi
+          # The committed file is the DTB generator's output -- its own header
+          # says so. Regenerating with the DTS generator and diffing proved
+          # nothing except that the two generators print different headers, so
+          # each is checked against the file it actually produces, and the two
+          # are compared to each other on the region list.
+          python3 scripts/gen-reserved.py docs/haydn-fdt.dts > /tmp/gen-dts.dtsi
+          python3 scripts/gen-reserved-live.py docs/haydn-fdt.dtb > /tmp/gen-dtb.dtsi
+          diff -u dts/haydn-reserved.dtsi /tmp/gen-dtb.dtsi
 
       - name: No firmware in the tree
         run: |
