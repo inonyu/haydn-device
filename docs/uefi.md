@@ -66,6 +66,61 @@ against this phone's DRAM base (`0x80000000`) and its six reserved regions —
 `removed_region`, `splash_region` — and against the DSC and the FDF agreeing
 with each other, which edk2 does not check.
 
+## The build loop
+
+The package is compiled by `.github/workflows/build.yml` on Ubuntu 24.04: clone
+Mu-Silicium, drop this package into `Platforms/Xiaomi/haydnPkg`, seed
+`Binaries/` from the venus set, run `build_uefi.py -d haydn -r DEBUG`. The
+seeded volume must not be flashed — it carries venus's panel and PMIC tables —
+and the workflow says so where it does it.
+
+No AArch64 UEFI compiler exists on the Windows host this repository was written
+on, so CI is the only place the build has ever run. Each run answers one
+question, and the ones answered so far are recorded here because each cost a
+round trip:
+
+| Run | Stopped at | What it proved |
+| --- | --- | --- |
+| 1 | `The Device Build Script isn't Present in "Platforms/Xiaomi/haydnPkg"` | `build_uefi.py` requires a `DeviceBuild.py` inside every device package |
+| 2 | `TypeError` in `DebugMacroCheckBuildPlugin.do_pre_build` | `Edk2Path.GetContainingPackage()` finds packages by `*.dec`, and haydnPkg had none |
+| 3–4 | `error 1001: Module type [SEC] is not supported by library instance [.../UefiDebugLibStdErr.inf]` | a bare `[LibraryClasses]` in the DSC applies to every module type, SEC included |
+| 5 | reached the compiler for the first time | the package assembles once only its own libraries are named |
+
+### Three things about edk2 that are not written down anywhere obvious
+
+1. **`DeviceBuild.py` is mandatory.** `get_device_package_path()` finds the
+   package by globbing `*/<device>Pkg` and `*/*/<device>Pkg` under `Platforms/`,
+   then refuses to continue unless `<device>Pkg/DeviceBuild.py` exists. Every
+   board in the tree ships one; haydnPkg's is vili's structure with the name
+   and the scopes changed.
+
+2. **`<device>.dec` is the package marker.** Zero bytes is fine and normal —
+   `venus.dec`, `vili.dec` and `nabu.dec` are all empty. The file exists so
+   `GetContainingPackage()` can walk up from the DSC and name the package; with
+   no `.dec` it returns `None` and edk2's own pre-build plugins crash on it.
+
+3. **`[LibraryClasses]` is not per-section.** `[LibraryClasses.common.SEC` and
+   `[LibraryClasses.AARCH64]` narrow the type; a plain `[LibraryClasses]` does
+   not, so anything listed there is forced on SEC as well. The two packages
+   that build (venus, vili) name only their own two libraries and inherit
+   everything else from `LahainaPkg.dsc.inc`.
+
+### The patch series has to carry what it names
+
+`soc/sm8350/patches/xnu/series` names `sheng-platform-power.patch`, and
+`unixnu status` refuses a series whose entries are missing:
+
+```
+soc/sm8350/patches/xnu/series:6: patch missing:
+  .../soc/sm8350/patches/xnu/sheng-platform-power.patch
+```
+
+A bare entry resolves against the series' own directory, so the 352-byte hook
+is vendored beside it rather than referenced across repositories. It calls
+`sheng_pmgr_run()` from `bsd_init` when `XNU_SHENG_PMGR` is set, and both this
+board's defconfig and `soc/sm8350/configs/sm8350.config` set it — the patch and
+the config that needs it travel together.
+
 ### Still missing
 
 The `Binaries/` files themselves. They are Qualcomm's and the phone's; this
