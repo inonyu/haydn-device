@@ -29,11 +29,17 @@ configuration = [
 ]
 limits = [
   "No haydn vendor UEFI volume set: Binaries/haydn is the venus SM8350 set.",
+  "The UEFI volume builds (CI run 13 on 2026-11-13) but has no ACPI tables and no display driver, so it brings the board up and stops.",
 ]
 next_action = [
   "Extract the haydn XBL/UEFI volumes and rebuild haydnPkg from them.",
+  "Boot the built volume with fastboot boot and record where it stops. This needs a person with the phone: a failure is a black screen and a ten-second power-button hold.",
 ]
-evidence = []
+evidence = [
+  "CI run 13 (github.com/inonyu/haydn-device/actions/runs/43259388859): edk2 built the volume, 48 images verified, SILICIUM_UEFI.fd = 2,097,152 bytes with FvLength 0x200000 and the _FVH signature.",
+  "scripts/verify-volume.py against that artifact: FV header, length and 'Redmi K40 Pro' in the SMBIOS strings all check out; M2011K2G, Mi 11, 11T Pro, mdss_dsi_venus and mdss_dsi_k11 are absent.",
+  "Mu-haydn.img from the same run: ANDROID! header, page 2048, gzip kernel that decompresses to 112 bytes of BootShim followed by the same FD.",
+]
 
 [[area]]
 id = "firmware"
