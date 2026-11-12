@@ -45,3 +45,32 @@ The partition layout has 100+ entries and `super` is dynamic, so a free
 region large enough for a root volume may not exist. Deciding whether to
 carve one — and where — needs the phone's full GPT, which this repository
 does not have yet. That is the first thing the install work has to answer.
+
+## The first test once the volume builds
+
+`build.yml` publishes two files when the build is green: `SILICIUM_UEFI.fd`
+(the firmware image itself) and `Mu-haydn.img` (the same volume with BootShim
+prepended and wrapped in an Android boot header, which is what `fastboot boot`
+takes).
+
+```sh
+adb reboot bootloader                      # or: adb reboot fastboot is NOT this
+fastboot devices                           # must list the serial
+fastboot boot Mu-haydn.img                 # RAM only; nothing is written
+```
+
+`fastboot boot` loads the image into DDR and jumps to it. It does not write
+`boot_a`, and a power cycle puts Android back. The worst case is a black screen.
+
+**Nobody has run this yet**, and one thing about the current state decides when
+it is safe to:
+
+> The `Binaries/` this volume was built against are the venus set, copied
+> because `Device-Binaries` has no `haydn` directory. venus is the same SoC and
+> a different phone: its panel init and PMIC tables are in this image. A green
+> build proves the package assembles and the FD links. It does not prove the
+> display comes up.
+
+If the screen stays black, the recovery is a ten-second power-button hold —
+which needs a person with the phone in their hand. So the first `fastboot boot`
+should be run with someone present, not unattended.
