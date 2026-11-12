@@ -49,6 +49,22 @@
   #
   SOC_TYPE                       = 0
 
+  #
+  # The firmware descriptor's load address. venusPkg and viliPkg both use
+  # 0x9fd00000, and so does this, because the number is not theirs: it is where
+  # SM8350's abl leaves room. abl's own ELF header says it occupies
+  # [0x9fa00000, 0x9fa30000) and its entry is 0x9fa00000, so everything from
+  # 0x9fa30000 upward is free; 0x9fd00000 is 3 MB past abl's start.
+  #
+  # Checked against this phone's DRAM and its reserved regions: DRAM begins at
+  # 0x80000000, and [0x9fd00000, 0xa3d00000) overlaps none of hyp_region
+  # (0x80000000+0x600000), xbl_aop_region (0x80600000+0x260000),
+  # res_xbl_uefi_log (0x80880000+0x14000), modem_region (0x8f000000+0x10000000),
+  # removed_region (0xd8800000+0x5400000) or splash_region (0xdfc00000+0x2300000).
+  #
+  FD_BASE                        = 0x9FD00000
+  FD_SIZE                        = 0x00200000
+
 !include LahainaPkg/LahainaPkg.dsc.inc
 
 [PcdsFixedAtBuild]
