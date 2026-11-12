@@ -1,0 +1,362 @@
+schema_version = 1
+
+[device]
+name = "haydn"
+soc = "SM8350"
+os_profile = "ipados-17.7.11-21H461"
+summary = "Xiaomi Redmi K40 Pro (haydn, SM8350). Device tree and every hardware address taken from the phone's own live FDT (799754 bytes); arm64 profile because this SoC has no pointer authentication."
+
+[[area]]
+id = "configuration"
+status = "implemented"
+components = []
+paths = [
+  "board.toml",
+  "feeds.toml",
+  "configs/**",
+  "dts/**",
+  "soc/**",
+]
+inputs = [
+  "SoC SM8350 (lahaina), 4x Cortex-A55 + 3x Cortex-A78 + 1x Cortex-X1, 7,471,256 kB usable RAM.",
+  "Board device tree read back from the running firmware: /sys/firmware/fdt, 799,754 bytes, pulled with root on 2026-11-12.",
+  "userdata GPT: /dev/block/sda34 = 241,906,462,720 bytes = 59,059,195 x 4096-byte LBA.",
+]
+configuration = [
+  "board.toml: soc = \"SM8350\", soc_source = \"sm8350\", os_profile = \"ipados-17.7.11-21H461\", kit = \"haydn\".",
+  "config_fragments = arch + soc:configs/sm8350.config + os:configs/ipados.config; device patch series empty.",
+  "dts/haydn.dts includes soc:dts/sm8350.dtsi and dts/haydn-reserved.dtsi; publishes a 6 GiB ADT window at 0x80000000 and the splash region at 0xdfc00000.",
+]
+limits = [
+  "No haydn vendor UEFI volume set: Binaries/haydn is the venus SM8350 set.",
+]
+next_action = [
+  "Extract the haydn XBL/UEFI volumes and rebuild haydnPkg from them.",
+]
+evidence = []
+
+[[area]]
+id = "firmware"
+status = "planned"
+components = []
+paths = [
+  "board.toml",
+  "docs/uefi.md",
+]
+inputs = [
+  "Mu-Silicium (Project-Silicium) main: LahainaPkg provides SM8350 SEC/PEI/DXE platform support.",
+  "venusPkg (Mi 11, M2011K2C): same SoC, same vendor DXE inventory, used as the board template.",
+]
+configuration = [
+  "[firmware] dsc = Platforms/Xiaomi/haydnPkg/haydn.dsc; config = haydn.",
+  "[firmware.defines] DEVICE_MODEL = haydn, ENABLE_SECUREBOOT = 0.",
+]
+limits = [
+  "haydnPkg does not exist; the venus package is the template.",
+  "No firmware image has been built for this board.",
+]
+next_action = [
+  "Generate haydnPkg from venusPkg and build SILICIUM_UEFI.fd.",
+]
+evidence = []
+
+[[area]]
+id = "cpu"
+status = "planned"
+components = []
+paths = [
+  "dts/**",
+  "soc/dts/**",
+  "configs/haydn_defconfig",
+]
+inputs = [
+  "8 cores: A55 (0xd05) at MPIDR 0x000/0x100/0x200/0x300, A78 (0xd41) at 0x400/0x500/0x600, X1 (0xd44) at 0x700.",
+  "GICv3 distributor 0x17a00000 (0x10000), redistributor 0x17a60000, stride 0x20000, 4 interrupt cells.",
+  "Architected timer, timebase 19200000 Hz, PSCI 1.0 over SMC.",
+  "Max clocks read on the phone: 1,804,800 / 2,419,200 / 2,841,600 kHz.",
+]
+configuration = [
+  "soc:dts/sm8350.dtsi: cpus, psci, gic with unixnu,adt-name = intc.",
+  "device:dts/haydn.dts marks cpu0-3 as the E cluster and cpu4-7 as the P cluster.",
+  "haydn_defconfig: CONFIG_XNU_ARMCPU=y, CONFIG_XNU_ARM_DT_PLATFORM=y.",
+]
+limits = [
+  "The CPU topology is recorded but no kernel has run on the device.",
+  "Secondary core bring-up and IPI delivery are unverified.",
+]
+next_action = [
+  "Build the kernel with CONFIG_XNU_ARMCPU and check the entry checkpoint.",
+]
+evidence = []
+
+[[area]]
+id = "memory"
+status = "planned"
+components = []
+paths = [
+  "dts/haydn-reserved.dtsi",
+  "dts/haydn.dts",
+]
+inputs = [
+  "DRAM: 0x80000000+0x37500000, 0x200000000+0x180000000, 0xc0000000+0x14000000 (12 GiB physical; 7.47 GiB usable).",
+  "21 reserved regions, 607.7 MiB total, generated from the live FDT into dts/haydn-reserved.dtsi.",
+  "Loader frame buffer reserved at 0xdfc00000 + 0x2300000 (splash_region).",
+]
+configuration = [
+  "dts/haydn-reserved.dtsi is generated, never pasted, so every range stays auditable.",
+  "[payload] dram_size = 0x180000000 (6 GiB), matching memory@80000000 in dts/haydn.dts.",
+]
+limits = [
+  "The 6 GiB ADT window and 21 reserved regions are recorded, not yet exercised on hardware.",
+  "Native SMMU is not enabled: no driver claims the SMMU streams.",
+]
+next_action = [
+  "Confirm the reserved-memory carve-out survives the ADT encoder.",
+]
+evidence = []
+
+[[area]]
+id = "storage"
+status = "host-verified"
+components = []
+paths = [
+  "soc/dts/sm8350.dtsi",
+  "configs/haydn_defconfig",
+  "board.toml",
+]
+inputs = [
+  "ufshc@1d84000: reg 0x1d84000+0x3000, 0x1d88000+0x8000, 0x1d90000+0x9000; SPI 0x109.",
+  "ufsphy_mem@1d87000: reg 0x1d87000+0xe10; compatible qcom,ufs-phy-qmp-v4-lahaina; two lanes per direction.",
+  "userdata = /dev/block/sda34, 59,059,195 x 4096-byte LBA.",
+]
+configuration = [
+  "CONFIG_XNU_NATIVE_UFS=y with CONFIG_HAYDN_UFS_PROBE_ONLY=y for the first milestone.",
+  "ShengUfs is selected as a component; its stream id needs this board's value.",
+]
+limits = [
+  "\"No command list is put into the controller: that needs memory the loader offers, and this driver does not read the loader page yet.\"",
+  "\"Nothing has been read from the flash by an XNU kernel on this board.\"",
+  "The UFS PHY address in earlier records was wrong; it is corrected here to 0x1d87000.",
+  "Probe-only: the audited IOBlockStorageDevice binding needs the real OS image.",
+  "No UFS read has been performed by an XNU kernel on this board.",
+]
+next_action = [
+  "\"Read the loader page and issue a TEST UNIT READY through it.\"",
+  "\"Then READ CAPACITY(10) on LUN 0 and compare with the 59,059,195 blocks the phone reports.\"",
+  "Build with CONFIG_XNU_NATIVE_UFS and confirm the probe reaches sda34.",
+]
+evidence = []
+
+[[area]]
+id = "display"
+status = "planned"
+components = []
+paths = [
+  "soc/dts/sm8350.dtsi",
+  "board.toml",
+]
+inputs = [
+  "MDP 0xae00000+0x84000, VBIF 0xaeb0000+0x2008, REGDMA 0xaeac000+0x800; SPI 0x53.",
+  "DSI0 ctrl 0xae94000 / PHY 0xae94400; DSI1 ctrl 0xae96000 / PHY 0xae96400.",
+  "Panel qcom,mdss_dsi_k11_38_08_0a_dsc_cmd: 1080x2400, DSC, HDR10, 60/90/120 Hz.",
+  "Backlight at /sys/class/backlight/panel0-backlight; no /dev/graphics/ exists.",
+]
+configuration = [
+  "CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y: the loader's frame buffer only.",
+  "[adt.chosen.u32] display-scale = 2, display-rotation = 0.",
+]
+limits = [
+  "No DSI or MDSS driver exists for haydn.",
+  "Backlight, brightness and the panel timing table are not written.",
+]
+next_action = [
+  "Port the GopFramebuffer legacy path first, then the DSI controller.",
+]
+evidence = []
+
+[[area]]
+id = "input"
+status = "host-verified"
+components = []
+paths = [
+  "package/touch/**",
+  "tests/touch-format.py",
+  "soc/dts/sm8350.dtsi",
+]
+inputs = [
+  "spi@a8c000, node focaltech@0, compatible focaltech,fts; SPI clock 6 MHz.",
+  "Reset GPIO 22, IRQ GPIO 23 (falling edge); 10 touches; display coords 8640x19200.",
+  "Live kernel binds spi1.0 to fts_ts; focaltech_touch.ko is loaded.",
+]
+configuration = [
+  "No input driver is selected yet.",
+  "QcomGeniSpi is selected so the SPI controller exists when a driver is written.",
+]
+limits = [
+  "The FocalTech FTS controller is identified (SPI 0xa8c000, 6 MHz, GPIO 22/23) but no driver exists.",
+  "Previous records noted a handshake only, with no HID events published.",
+  "The SPI transfer is declared, not defined: XNU has no generic SPI client layer and QcomGeniSpi has to supply it.",
+]
+next_action = [
+  "Adapt the FTS 5.x SPI protocol from HakiOS's goodix.c to this bus.",
+]
+evidence = []
+
+[[area]]
+id = "gpu"
+status = "host-verified"
+components = []
+paths = [
+  "soc/dts/sm8350.dtsi",
+  "docs/hardware.md",
+]
+inputs = [
+  "3D core 0x3d00000+0x40000, GMU 0x3d6a000+0x34000, GPUCC 0x3d90000, KGSL SMMU 0x3da0000+0x20000.",
+  "qcom,chipid = 0x06060001 (Adreno 660), ubwc-mode 4, highest-bank-bit 0x10.",
+  "SPI 0x12c (GPU), 0x130 (HFI), 0x131 (GMU). Eleven frequency levels, 855 to 900 MHz at the top.",
+]
+configuration = [
+  "No GPU driver is selected: UniXNU's Adreno740 targets A740 + SM8550 only.",
+  "The seven reg windows and the three SMMU contexts are described in soc:dts/sm8350.dtsi for the driver that comes later.",
+]
+limits = [
+  "\"Only steps 1 to 3 are implemented, and all three read: nothing writes to the GPU block.\"",
+  "\"The 3D core cannot leave secure mode until TrustZone loads the zap shader (step 19), and no TrustZone path exists here yet.\"",
+  "\"Which of the two speed tables a handset uses is decided by its fuses, whose mapping is not documented; the driver takes the higher table rather than guessing.\"",
+  "No Adreno driver is selected. UniXNU's Adreno740 targets A740 + SM8550 interfaces only.",
+  "haydn is an Adreno 660: chipid 0x06060001, 855-900 MHz, none of which the A740 code covers.",
+]
+next_action = [
+  "\"Write step 4 (the CX power switch) and stop there, then step 5 (its clocks).\"",
+  "\"Steps 13 to 17 need the GMU firmware the phone carries, which is extracted and hash-pinned but not wired in.\"",
+  "Adapt HakiOS's hakios.adreno.c: the gpucc/gmu/smmu block addresses are identical, the chip-keyed parts are not.",
+]
+evidence = []
+
+[[area]]
+id = "network"
+status = "planned"
+components = []
+paths = [
+  "soc/dts/sm8350.dtsi",
+  "docs/wifi.md",
+  "docs/hardware.md",
+]
+inputs = [
+  "qcom,cnss-qca6490@b0000000: SMMU IOVA IPA 0xb0000000+0x10000, TCS cmd 0xb2e5510+0x690.",
+  "PCIe 0x1c00000 (parf), 0x1c06000 (phy), 0x60000000 (dm_core), 0x60100000 (conf); smmu-sid-base 0x1c00.",
+  "MHI: 30 channels, 10000 ms timeout, 32768-byte buffers, m2-no-db-access.",
+  "Board data file: 147 bdwlan segments of 59,868 bytes each in /vendor/firmware_mnt/image.",
+]
+configuration = [
+  "No wireless component is selected: the catalog has Ath12kWifi (ath12k) and haydn is ath11k.",
+  "The device tree nodes are described so the transport has a target.",
+]
+limits = [
+  "The catalog's only wireless component is Ath12kWifi (ath12k, wcn7850 / qcn9274).",
+  "haydn is QCA6490, which is ath11k over PCIe + MHI; no component implements that transport.",
+  "Wi-Fi and Bluetooth are both unavailable.",
+]
+next_action = [
+  "Write the PCIe + MHI transport under LinuxKPI, reusing HakiOS's transport-independent QMI/WLFW layer.",
+]
+evidence = []
+
+[[area]]
+id = "audio"
+status = "planned"
+components = []
+paths = [
+  "soc/dts/sm8350.dtsi",
+  "docs/hardware.md",
+]
+inputs = [
+  "ADSP: 29 segments, 19.97 MB, adsp.mdt plus adsp.b00..b25; largest adsp.b20 at 12.06 MB.",
+  "Codec: wcd938x (13 nodes) + cs35l41 (4 nodes) + bolero + SoundWire.",
+  "ADSP libraries live in /vendor/dsp/adsp (AudioSphere, FLAC, LDAC, AAC and others).",
+]
+configuration = [
+  "No audio driver is selected.",
+  "Haptics are swr_haptics over SoundWire, not an I2C part.",
+]
+limits = [
+  "Audio is not available.",
+  "29 ADSP firmware segments are identified but nothing consumes them.",
+]
+next_action = [
+  "Bring up the ADSP remoteproc path before any codec work.",
+]
+evidence = []
+
+[[area]]
+id = "power"
+status = "planned"
+components = []
+paths = [
+  "soc/**",
+  "configs/haydn_defconfig",
+  "docs/hardware.md",
+]
+inputs = [
+  "PMIC qcom,pm8350 (12 nodes) + qcom,pmk8350 (4 nodes).",
+  "65 thermal zones on the live phone, including gpuss-0/1-usr, ddr-usr, cpuss-0/1-usr, cpu-0-0..cpu-1-7-usr, nspss-0..2-usr, aoss-0/1-usr, mdmss-0..2-usr.",
+  "Live power supplies: battery, usb, wireless.",
+]
+configuration = [
+  "CONFIG_XNU_SHENG_PMGR=y: the PMGR call site the SM8350 platform code expects.",
+  "No thermal table yet: HakiOS's 27-zone table is for a different SoC and is not reused.",
+]
+limits = [
+  "Battery, charging and thermal reporting are not available.",
+  "65 thermal zones are recorded; no table is built for them.",
+]
+next_action = [
+  "Port HakiOS's pmic / thermal / cpufreq skeletons and rebuild the zone table from the 65 live zones.",
+]
+evidence = []
+
+[[area]]
+id = "packaging"
+status = "planned"
+components = []
+paths = [
+  "board.toml",
+]
+inputs = [
+  "No kernel, payload or boot image has been produced on this host yet.",
+  "The board's boot partition geometry and [bootimg.image] header version 3 are recorded in board.toml.",
+]
+configuration = [
+  "[bootimg.image] header_version = 3, pagesize = 4096.",
+  "[payload] volume = HAYDNXNU, size_mib = 160.",
+]
+limits = [
+  "No kernel, payload or boot image has been produced for this board.",
+]
+next_action = [
+  "Run ./unixnu status --json and resolve every pin.",
+]
+evidence = []
+
+[[area]]
+id = "diagnostics"
+status = "planned"
+components = []
+paths = [
+  "board.toml",
+]
+inputs = [
+  "No log capture has been recorded: nothing has run on this board.",
+  "The loader can reach ttyMSM0 at 115200 8N1; the vendor cmdline carries console=ttyMSM0,115200n8.",
+]
+configuration = [
+  "[payload] kernel_args carry -v serial=3 debug=0x14e for the first capture.",
+  "panic_screen = true.",
+]
+limits = [
+  "No log capture has been recorded: nothing has run on the device.",
+]
+next_action = [
+  "Set up the ttyMSM0 console path before the first boot attempt.",
+]
+evidence = []

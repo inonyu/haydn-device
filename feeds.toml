@@ -1,0 +1,7 @@
+# The SM8350 shared support (dts, config fragment, patch series) is vendored
+# in this repository under soc/sm8350 so that a hosted build does not need a
+# second checkout. `local` is resolved relative to this file.
+[[source]]
+name = "sm8350"
+kind = "soc"
+local = "soc/sm8350"

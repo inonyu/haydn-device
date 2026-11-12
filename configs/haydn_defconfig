@@ -1,0 +1,35 @@
+# haydn (SM8350) kernel configuration.
+# CONFIG_XNU_<NAME> becomes XNU_<NAME> for the kernel build script.
+# Building the ordered component archives needs this; it drives
+# scripts/build-arm-driver.py over the compile records.
+CONFIG_XNU_BUILD_ARCHIVES=y
+CONFIG_XNU_ARM_DT_PLATFORM=y
+CONFIG_XNU_ARMCPU=y
+CONFIG_XNU_CRYPTO_BOOTSTRAP="prelinked"
+CONFIG_XNU_ARMVIRT_PLATFORM=n
+
+# Storage: the UFS host controller is driven by the kernel (ShengUfs fork
+# carrying this board's stream ids). Probe-only for the first milestone: the
+# audited IOBlockStorageDevice binding is what makes it a root device, and
+# that audit needs the real OS image, which this board does not have yet.
+CONFIG_XNU_NATIVE_UFS=y
+CONFIG_HAYDN_UFS_PROBE_ONLY=y
+
+# Adreno 660: not selected. The GPU's registers are reachable (see
+# docs/hardware.md) but the driver is P6, after the display path works.
+CONFIG_XNU_NATIVE_ADRENO=n
+
+# Display: the UEFI frame buffer only. The MDSS/DSI driver is P3.
+CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y
+
+# Wi-Fi: QCA6490 over PCIe + MHI. No component implements this transport
+# yet, so nothing is selected; docs/wifi.md records what is needed.
+CONFIG_XNU_NATIVE_WIFI=n
+
+# Test transports stay off.
+CONFIG_XNU_NATIVE_RAM_BLOCK=n
+CONFIG_XNU_NATIVE_VIRTIO_BLOCK=n
+CONFIG_XNU_BOOT_PROGRESS=y
+
+# The PMGR call site the SM8350 platform code expects.
+CONFIG_XNU_SHENG_PMGR=y

@@ -1,0 +1,19 @@
+# haydn (Redmi K40 Pro, SM8350, 8 GB).
+#
+# The FD numbers are the ones platform/haydnPkg/haydn.dsc carries, and
+# scripts/check-platform.py proves them clear of every reserved region this
+# phone reports. Mu-Silicium's build_uefi.py reads this file, not the DSC.
+
+[boot_shim]
+requires_kernel_header = true
+
+[uefi_fd]
+base = 0x9FD00000
+size = 0x00200000
+
+[boot_image_kernel]
+kernel_compression = "gzip"
+append_dtb         = true
+
+[boot_image]
+header_version = 1

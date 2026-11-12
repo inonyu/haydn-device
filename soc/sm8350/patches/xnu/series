@@ -1,0 +1,6 @@
+# SM8350 XNU patch series.
+#
+# sheng-platform-power is the shared AMFI/PMGR hook: it calls sheng_pmgr_run()
+# from bsd_init when XNU_SHENG_PMGR=1, and the device package supplies that
+# symbol (a provider-less ApplePMGRNub plus the touch bring-up).
+sheng-platform-power.patch

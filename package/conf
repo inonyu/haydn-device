@@ -1,0 +1,23 @@
+# The drivers this board writes for itself.
+#
+# Each block is one configuration symbol, the way XNU's own conf files spell
+# them: a name, the file, and the help line the configuration browser shows.
+# A driver that is built in and not asked for by its boot argument touches no
+# register, so building them all in costs nothing at boot.
+
+driver PCIE
+	file    bsd/dev/haydn.pcie.c
+	help    the PCIe root complex the Wi-Fi radio sits on: map the windows, read 01:00.0 (pcie_probe=1)
+
+driver TOUCH
+	file    bsd/dev/haydn.touch.c
+	help    the FocalTech touch screen on SPI11: 6 MHz, GPIO 22/23 (touchscreen=1)
+
+driver HAYDN_UFS
+	file    bsd/dev/haydn.ufs.c
+	help    the UFS host controller at 0x1d84000: read-only probe of a controller UEFI brought up (ufs_probe=1)
+
+driver HAYDN_GPU
+	file    bsd/dev/haydn.gpu.c
+	help    the Adreno 660 at 0x3d00000: the three read-only steps of a twenty-two step bring-up (adreno=N)
+

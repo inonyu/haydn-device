@@ -1,0 +1,12 @@
+schema_version = 2
+
+[soc]
+name = "sm8350"
+description = "Qualcomm SM8350 / Snapdragon 888 (lahaina)"
+# Hardware data below comes from the live firmware FDT of a Redmi K40 Pro (haydn):
+#   /sys/firmware/fdt, decompiled to dts/haydn-fdt.dts in the device record.
+source_repository = "https://github.com/UniXNU/UniXNU-sm8350-common"
+source_revision = "LOCAL"
+
+[components]
+include = ["ArmCpu", "ArmDTPlatform"]

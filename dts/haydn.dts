@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Xiaomi Redmi K40 Pro (haydn), Qualcomm SM8350 (lahaina).
+//
+// NOT the K40 Pro+ / Mi 11i (haydnpro): that is a different machine with 12 GiB
+// of RAM and a different dtbo set (index 21 against this phone's 10). The two
+// share the SoC and nothing else that matters here.
+//
+// Every address in this file was read from the phone's own firmware device tree
+// (/sys/firmware/fdt, 799754 bytes, extracted 2026-11-12) and from the live
+// /sys/bus/platform/devices listing. Nothing here is inferred from a sibling
+// board: see docs/hardware.md for the line each value came from.
+/dts-v1/;
+/include/ "sm8350.dtsi"
+
+/ {
+    model = "Xiaomi Redmi K40 Pro";
+    compatible = "xiaomi,haydn", "qcom,sm8350";
+
+    // Restated: with the legacy /include/ directive dtc parses this file's
+    // nodes before it has merged the included root, so a 64-bit reg size
+    // below would be truncated to 32 bits without these two lines.
+    #address-cells = <2>;
+    #size-cells = <2>;
+
+    memory@80000000 {
+        device_type = "memory";
+        // The ADT window published to XNU.
+        //
+        // **This is the 8 GB Redmi K40 Pro, not the 12 GB K40 Pro+.** The phone
+        // reports hardware.sku=haydn and hwversion=4.9.0; haydnpro is a different
+        // machine with different memory. Read from /proc/device-tree/memory on
+        // this handset, its three windows are:
+        //
+        //     0x00080000000 + 0x39700000    919 MiB
+        //     0x00180000000 + 0x100000000  4096 MiB
+        //     0x000c0000000 + 0x0c0000000  3072 MiB
+        //     ------------------------------------------
+        //     total                        8087 MiB  (7.90 GiB)
+        //
+        // (An earlier version of this file said the board had 12 GiB split as
+        // 0x80000000+0x37500000 / 0x200000000+0x180000000 /
+        // 0xc0000000+0x14000000 — that is the K40 Pro+.)
+        //
+        // One flat window from 0x80000000 that stays inside the first segment is
+        // what the loader wants; 0x20000000 (512 MiB) is comfortably inside
+        // 0x39700000 and leaves the rest to the kernel's own allocator.
+        reg = <0 0x80000000 0 0x20000000>;
+    };
+
+    chosen {
+        // Kept small: the loader reads this tree whole.
+        bootargs = "console=ttyMSM0,115200n8";
+    };
+
+    // The panel's own frame buffer, left by the boot loader. 1080x2400 at
+    // 32 bpp is 0x9E4000 bytes; the reserved region is the vendor's, larger.
+    reserved-memory {
+        // Regenerated from the live FDT by scripts/gen-reserved.py; included
+        // rather than pasted so the source of every range stays auditable.
+    };
+};
+
+/include/ "haydn-reserved.dtsi"
+
+// CPU clusters. The four A55 are the E cluster, the three A78 and the single
+// X1 the P cluster (haydn-fdt.dts: cpus/cpu@* unixnu,cluster-type is ours).
+&cpu0 { unixnu,cluster-type = "E"; };
+&cpu1 { unixnu,cluster-type = "E"; };
+&cpu2 { unixnu,cluster-type = "E"; };
+&cpu3 { unixnu,cluster-type = "E"; };
+&cpu4 { unixnu,cluster-type = "P"; };
+&cpu5 { unixnu,cluster-type = "P"; };
+&cpu6 { unixnu,cluster-type = "P"; };
+&cpu7 { unixnu,cluster-type = "P"; };
+
+// Peripherals stay disabled until the matching native driver exists.
+// Storage: enabled from P1 (ufshc@1d84000, ufsphy_mem@1d87000).
+// Display: enabled from P3 (mdss_mdp@ae00000, dsi_ctrl0@ae94000).
+// GPU: enabled from P6 (kgsl-3d0@3d00000, gmu@3d69000).
+// WiFi: enabled from P7 (pcie@1c00000 + cnss-qca6490@b0000000).
+&ufs { status = "okay"; };
+&ufsphy { status = "okay"; };
+&usb0 { status = "disabled"; };

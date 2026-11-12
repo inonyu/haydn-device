@@ -1,0 +1,19 @@
+# Firmware never lives here: docs/firmware.md says how to take it again.
+fw-*/
+*.dtb
+# ... except the live FDT the CI checks read, which is the evidence for
+# every address in this repository. Its serial number is zeroed.
+!docs/haydn-fdt.dtb
+*.img
+out/
+
+# Local build inputs
+local.toml
+
+
+# The firmware pieces a UEFI build consumes: Qualcomm's and the phone's, never
+# in this repository. platform/haydnPkg/binaries.toml records what they are.
+platform/haydnPkg/Binaries/
+*.mbn
+*.elf
+*.fv

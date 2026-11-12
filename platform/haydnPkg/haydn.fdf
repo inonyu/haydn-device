@@ -1,0 +1,102 @@
+#
+# The FDF for haydn.
+#
+# Structured after venusPkg's (Platforms/Xiaomi/venusPkg/venus.fdf in
+# Project-Silicium/Mu-Silicium), which is the same SoC. The difference that
+# matters: this one leaves out UniXNUPkg and DarwinBootPkg. Those are UniXNU's
+# own packages and are not in the Mu-Silicium tree, so a first build has to
+# succeed without them -- it produces a UEFI that brings the board up and
+# stops, which is the right first milestone.
+#
+# Uncomment the two lines at the bottom once those packages exist.
+#
+# Copyright (c) 2018, Linaro Limited. All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[FD.SILICIUM_UEFI]
+BaseAddress   = $(FD_BASE)|gArmTokenSpaceGuid.PcdFdBaseAddress
+Size          = $(FD_SIZE)|gArmTokenSpaceGuid.PcdFdSize
+ErasePolarity = 1
+
+# BlockSize * NumBlocks = Size
+BlockSize     = 0x1000
+NumBlocks     = $(FD_BLOCKS)
+
+#
+# The whole device is one compressed volume, the shape venus.fdf uses.
+#
+0x00000000|$(FD_SIZE)
+gArmTokenSpaceGuid.PcdFvBaseAddress|gArmTokenSpaceGuid.PcdFvSize
+FV = FVMAIN_COMPACT
+
+[FV.FvMain]
+FvNameGuid         = CD8D4C84-20AD-4073-8A28-3400FAE05941
+BlockSize          = 0x1000
+NumBlocks          = 0
+FvAlignment        = 8
+ERASE_POLARITY     = 1
+MEMORY_MAPPED      = TRUE
+STICKY_WRITE       = TRUE
+LOCK_CAP           = TRUE
+LOCK_STATUS        = TRUE
+WRITE_DISABLED_CAP = TRUE
+WRITE_ENABLED_CAP  = TRUE
+WRITE_STATUS       = TRUE
+WRITE_LOCK_CAP     = TRUE
+WRITE_LOCK_STATUS  = TRUE
+READ_DISABLED_CAP  = TRUE
+READ_ENABLED_CAP   = TRUE
+READ_STATUS        = TRUE
+READ_LOCK_CAP      = TRUE
+READ_LOCK_STATUS   = TRUE
+
+  !include Include/APRIORI.inc
+  !include Include/DXE.inc
+  !include Include/RAW.inc
+
+  # BDS
+  INF MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
+  INF SiliciumPkg/Drivers/SmBiosTableDxe/SmBiosTableDxe.inf
+
+  # ACPI
+  INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+  INF MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
+
+  !include QcomPkg/Extra.fdf.inc
+
+[FV.FVMAIN_COMPACT]
+FvAlignment        = 8
+ERASE_POLARITY     = 1
+MEMORY_MAPPED      = TRUE
+STICKY_WRITE       = TRUE
+LOCK_CAP           = TRUE
+LOCK_STATUS        = TRUE
+WRITE_DISABLED_CAP = TRUE
+WRITE_ENABLED_CAP  = TRUE
+WRITE_STATUS       = TRUE
+WRITE_LOCK_CAP     = TRUE
+WRITE_LOCK_STATUS  = TRUE
+READ_DISABLED_CAP  = TRUE
+READ_ENABLED_CAP   = TRUE
+READ_STATUS        = TRUE
+READ_LOCK_CAP      = TRUE
+READ_LOCK_STATUS   = TRUE
+
+  INF SiliciumPkg/Sec/Sec.inf
+
+  FILE FV_IMAGE = 9E21FD93-9C72-4c15-8C4B-E77F1DB2D792 {
+    SECTION GUIDED EE4E5898-3914-4259-9D6E-DC7BD79403CF PROCESSING_REQUIRED = TRUE {
+      SECTION FV_IMAGE = FVMAIN
+    }
+  }
+
+  !include SiliciumPkg/Common.fdf.inc
+
+#
+# UniXNU's own two components. They are not in the Mu-Silicium tree, so they
+# are off until this repository carries them:
+#
+#   INF UniXNUPkg/Application/UniXNU/UniXNU.inf
+#   INF DarwinBootPkg/Driver/DarwinBoot.inf
+#

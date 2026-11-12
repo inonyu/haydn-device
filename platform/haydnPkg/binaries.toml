@@ -1,0 +1,64 @@
+# The firmware pieces a haydn UEFI build consumes.
+#
+# Not the UEFI volume: that is compiled from Mu-Silicium plus the Silicium
+# SM8350 support, the way venusPkg's is. What comes from the phone is these.
+#
+# Extracted from the running handset on 2026-11-12 with root. docs/binaries.md
+# says what each one is and why.
+#
+# The binaries themselves are NOT in this repository: they are Qualcomm's and
+# the phone's. scripts/verify-binaries.py checks that the files put in
+# Binaries/ are the ones this list describes.
+
+[source]
+device = "haydn"
+soc = "sm8350"
+extracted = "2026-11-12"
+
+[[piece]]
+partition = "devcfg_a"
+file = "devcfg_haydn.elf"
+format = "elf64-aarch64"
+partition_bytes = 262144
+content_bytes = 52460
+sha256 = "6a0b1f33add9c072d70b9b5a103d6718705d848b3034a3ff86aa461686709943"
+
+[[piece]]
+partition = "tz_a"
+file = "tz_haydn.mbn"
+format = "elf64-aarch64"
+partition_bytes = 4194304
+content_bytes = 3765662
+sha256 = "1e940efd1d9a6c832a7da9687a4918d72f8eb48ccd7ed5b469f5b2c70866b158"
+
+[[piece]]
+partition = "aop_a"
+file = "aop_haydn.mbn"
+format = "elf32-arm"
+partition_bytes = 524288
+content_bytes = 244056
+sha256 = "420c0c56346f2c6a46b4e765aa834d30501668ce869b9584516a597de9e52cec"
+
+[[piece]]
+partition = "qupfw_a"
+file = "qupfw_haydn.elf"
+format = "elf32-0xa4"
+partition_bytes = 131072
+content_bytes = 57249
+sha256 = "101c8c40393bbfdeeb4d70328bae41f63192450aabbea4bb60c00cd062866edb"
+
+[[piece]]
+partition = "uefisecapp_a"
+file = "uefisecapp_haydn.elf"
+format = "elf32-arm"
+partition_bytes = 2097152
+content_bytes = 124825
+sha256 = "f3ccc5a7f40a00575cc7d5ec0c7397753c8a8c5a02f9eb517580e1f3706c5b55"
+
+[[piece]]
+partition = "imagefv_a"
+file = "imagefv_haydn.fv"
+format = "compressed-fv"
+partition_bytes = 2097152
+content_bytes = 2097152
+sha256 = "183a3a5fd94451977624c3093457ba3a7c0980e9b33cb4f3170300effe8ec43d"

@@ -1,0 +1,135 @@
+schema_version = 2
+
+[board]
+name = "haydn"
+soc = "SM8350"
+soc_source = "sm8350"
+os_profile = "ipados-17.7.11-21H461"
+kit = "haydn"
+description = "Xiaomi Redmi K40 Pro / K40 Pro+ / Mi 11i (haydn), SM8350"
+
+[package]
+unixnu = "../UniXNU"
+
+[package.defconfig]
+"ipados-17.7.11-21H461" = "haydn_defconfig"
+
+[components]
+# Chosen for the first usable milestone. Every entry is a catalog id from
+# UniXNU's components.toml; the drivers a board writes for itself live in
+# package/ and are selected through [kernel] archives below.
+include = ["ArmDTPlatform", "ArmCpu", "SoftwareAES", "XnuPrelink", "DarwinBoot", "AppleKeyStoreState", "QcomGeniSpi", "ShengUfs"]
+
+[kernel]
+defconfig = "haydn_defconfig"
+config_fragments = ["arch:configs/common.config", "soc:configs/sm8350.config", "os:configs/ipados.config"]
+patch_series = ["arch:patches/xnu/series", "soc:patches/xnu/series", "os:patches/xnu/series", "device:patches/xnu/series"]
+archives = [
+  "prepare-xnu-source.py",
+  "build-corecrypto-14.py",
+  "build-corecrypto-14.py --namespace",
+  "component:ArmDTPlatform",
+  "component:ArmCpu",
+  "component:SoftwareAES",
+  "build-software-aes-bindings.py",
+  "build-mockfs-fixture.py",
+  "build-libpthread-kernel.py",
+  "component:AppleKeyStoreState",
+  "component:ShengUfs",
+]
+
+[userdata]
+# Read from the phone's own GPT on 2026-11-12:
+#   /dev/block/sda34 = 241,906,462,720 bytes = 59,059,195 x 4096-byte LBA
+# The first_lba/last_lba pair below is the vendor's userdata partition as it
+# stands today. A port that wants to keep Android must carve a separate
+# partition instead: see docs/install.md.
+partition = "userdata"
+geometry_verified = true
+first_lba = 2785280
+last_lba = 61844474
+lba_bytes = 4096
+windows = [
+  { name = "OS", component = "OS" },
+  { name = "SystemOS", component = "Cryptex1,SystemOS" },
+]
+
+[device_tree]
+source = "device:dts/haydn.dts"
+include_dirs = ["soc:dts", "device:dts"]
+
+[firmware]
+config = "haydn"
+dsc = "platform/haydnPkg/haydn.dsc"
+fd = "Build/haydnPkg/{target}_CLANGPDB/FV/SILICIUM_UEFI.fd"
+# haydnPkg is this repository's own, in platform/haydnPkg: haydn.dsc and
+# haydn.fdf were generated from venusPkg's with the board facts replaced. The
+# UEFI implementation itself is shared with venus on purpose — Mu-Silicium and
+# the Silicium SM8350 support are the same for both boards.
+#
+# What comes from this handset is firmware, not UEFI: six pieces, listed with
+# their partitions and SHA-256 in platform/haydnPkg/binaries.toml. scripts/
+# verify-binaries.py checks them; docs/binaries.md says what each one does.
+#
+# The FD base is 0x9fd00000, and it is not venus's number borrowed: SM8350's
+# abl occupies [0x9fa00000, 0x9fa30000) with its entry at 0x9fa00000, so 3 MB
+# past that is free on any board of this family. scripts/check-platform.py
+# checks it against this phone's six reserved regions.
+packages = ["{uefi}", "{tree}/platform", "{uefi}/Common/Mu", "{uefi}/Common/Mu_OEM_Sample", "{edk2}", "{uefi}/Silicon/Qualcomm", "{uefi}/Silicon/Silicium", "{uefi}/Silicium-ACPI", "{uefi}/Silicium-ACPI/Silicon/Qualcomm", "{tree}/package", "{tree}/drivers/DarwinBoot"]
+
+[firmware.defines]
+DEVICE_MODEL = "haydn"
+ENABLE_SECUREBOOT = "0"
+MEMORY_PROTECTION = "TRUE"
+SHIP_MODE = "FALSE"
+BUILDID_STRING = "UniXNU-haydn"
+
+[bootimg.image]
+header_version = 3
+pagesize = 4096
+
+[payload]
+volume = "HAYDNXNU"
+size_mib = 160
+loader = "firmware"
+title = "Redmi K40 Pro XNU bring-up"
+timeout = 5
+tools = true
+panic_screen = true
+kernel_args = ["-v", "serial=3", "cpus=1", "debug=0x14e", "native-ufs-root=1", "native-ufs-probe=0", "boot-progress=2"]
+
+[payload.adt]
+chip_id = "8350"
+unique_chip_id = "required"
+# 6 GiB: inside this board's real DRAM and matching [memory] above. Venus uses
+# 1 GiB because its tested window is smaller; haydn has 8 GiB of RAM.
+owned_memory_size = "0x180000000"
+root_match_volume_uuid = "required"
+packed_data_ramdisk = true
+persistent_data = true
+
+[adt.product.string]
+# Software board identity of the selected iPad7,1 / J120 OS profile.
+model = "J120AP"
+artwork-display-gamut = "sRGB"
+
+[adt.product.u32]
+thin-bezel = 1
+
+[adt.chosen.u32]
+# The panel is 1080x2400; at scale 2 SpringBoard sees 540x1200 points.
+display-scale = 2
+display-rotation = 0
+
+[adt.buttons.string]
+compatible = "buttons"
+device_type = "buttons"
+
+[adt.buttons.strings]
+button-names = ["hold", "voldown", "volup"]
+
+[adt.buttons.u32]
+home-button-type = 2
+
+[adt.defaults.u32]
+sleep-disabled = 1

@@ -1,0 +1,2 @@
+# Ordered device patches for the XNU tree. Empty until a board-level change
+# is needed: the SoC series carries the SM8350 platform work.
