@@ -137,20 +137,33 @@ check('every FDF mention is commented out',
       str([r for r in fdf_refs if not r.startswith('#')]))
 
 print()
-print('The build workflow is honest about failing')
+print('The build workflow reports what actually happened')
+# It used to be marked continue-on-error because the build could only ever
+# produce a log. edk2 links the volume now, so a red run has to mean the
+# firmware did not build: no continue-on-error, and the log is still kept.
 build_path = os.path.join(WORKFLOWS, 'build.yml')
 if os.path.exists(build_path):
     text = read(build_path)
-    check('it says the first run is expected to fail',
-          'expected to fail' in text.lower())
-    check('it continues on error so the log is still kept',
-          'continue-on-error: true' in text)
-    check('it uploads the log even when the build failed',
+    # Match the key only: the comment above the job explains what it replaced,
+    # and naming the removed key inside a comment is not the same as using it.
+    check('a red run means the firmware did not build',
+          not any(l.split('#')[0].strip().startswith('continue-on-error')
+                  for l in text.splitlines()),
+          'the build job still swallows its failure')
+    check('it keeps the log when the build fails',
           'if: always()' in text)
+    check('it says the boot image boots in RAM',
+          'fastboot boot' in text)
     check('it warns the seeded volume must not be flashed',
           'must not be flashed' in text)
     check('it runs the repository checks first',
           'needs: checks' in text)
+    # The artifact upload has to come after the step that copies the volume
+    # into out/, or the artifact carries the log and not the firmware.
+    keep = text.find('keep the volume')
+    upload = text.find('actions/upload-artifact')
+    check('the volume is copied before the artifact is uploaded',
+          0 <= keep < upload, 'keep=' + str(keep) + ' upload=' + str(upload))
 else:
     check('build.yml exists', False)
 
