@@ -58,17 +58,23 @@ the five test suites (278 assertions), the four scripts, and the check that
 the reserved-memory generator reproduces its own output from two different
 inputs.
 
-`build.yml` is the first attempt at compiling a UEFI volume, and **its first
-run is expected to fail.** Everything up to now has been checked by tests
-that need nothing but Python; the questions left — does haydnPkg assemble,
-which DXE drivers are missing, does the FD link — can only be answered by
-edk2 itself. The job keeps the log and names the files the build could not
-find, because that list is the answer.
+`build.yml` compiles the UEFI volume. The questions Python cannot answer —
+does haydnPkg assemble, which DXE drivers are missing, does the FD link — are
+answered there, and the answers are yes: edk2 builds it, 48 images verify, and
+`SILICIUM_UEFI.fd` comes out at the full `0x200000`. When the job is green it
+publishes two artifacts: the `.fd` and `Mu-haydn.img`, which is the same
+volume wrapped for `fastboot boot`.
+
+`docs/uefi.md` records the gates that had to be passed to get there — three of
+them are edk2 rules that are not written down anywhere obvious, and each cost a
+round trip.
 
 It seeds `Binaries/haydn` from `Binaries/venus` — the same SoC, and the only
 set that exists — to get past "binary not found" and reach the errors that
 are about haydn rather than about the binaries. **The volume that produces
-must not be flashed**: it carries venus's panel and PMIC tables.
+must not be flashed**: it carries venus's panel and PMIC tables, and a green
+build therefore says the package assembles, not that the display comes up.
+`docs/install.md` says how to boot it in RAM once that changes.
 
 ## What the UEFI build consumes from the phone
 
