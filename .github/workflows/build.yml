@@ -132,9 +132,19 @@ jobs:
           base = 0x9FD00000
           size = 0x200000
 
+          # append_dtb is off, and not because the DTB is hard to find.
+          #
+          # build_uefi.py appends Resources/DTBs/<device>.dtb to the kernel, so
+          # the file has to be a *kernel* DTB -- the one this phone's own
+          # vendor_boot and dtbo partitions hand to Android. What this
+          # repository carries is docs/haydn-fdt.dtb: the FDT the bootloader
+          # publishes at /sys/firmware/fdt, with the board's full
+          # reserved-memory map and its own chosen/bootargs. Appending that
+          # would give the kernel a second, vendor-shaped tree. The append goes
+          # back on the day a real kernel DTB is recorded here.
           [boot_image_kernel]
           kernel_compression = "gzip"
-          append_dtb         = true
+          append_dtb         = false
 
           [boot_image]
           header_version = 1
@@ -186,9 +196,16 @@ jobs:
           path: out/
           compression-level: 9
 
+      # The volume and the boot image are the deliverable once the build is
+      # green. Both are kept: the .fd is the firmware itself, and the .img is
+      # what `fastboot boot` takes -- BootShim prepends itself, so the image
+      # boots in RAM and leaves the flash alone.
       - name: If it built, keep the volume
         if: success()
         run: |
           mkdir -p out/fd
           find Mu-Silicium/Build/haydnPkg -name '*.fd' -exec cp {} out/fd/ \;
           ls -la out/fd
+          cp Mu-Silicium/Mu-haydn.img out/ 2>/dev/null || \
+            find Mu-Silicium -maxdepth 1 -name 'Mu-haydn*.img' -exec cp {} out/ \;
+          ls -la out/
