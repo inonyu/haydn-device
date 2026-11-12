@@ -85,6 +85,7 @@ round trip:
 | 2 | `TypeError` in `DebugMacroCheckBuildPlugin.do_pre_build` | `Edk2Path.GetContainingPackage()` finds packages by `*.dec`, and haydnPkg had none |
 | 3–4 | `error 1001: Module type [SEC] is not supported by library instance [.../UefiDebugLibStdErr.inf]` | a bare `[LibraryClasses]` in the DSC applies to every module type, SEC included |
 | 5 | reached the compiler for the first time | the package assembles once only its own libraries are named |
+| 6–7 | edk2 green, then `The Device DTB is Missing in "Resources/DTBs"` | the volume links: 48 images verified, `SILICIUM_UEFI.fd` at the full `0x200000` with FVMAIN at 99%. Only the packaging step was left |
 
 ### Three things about edk2 that are not written down anywhere obvious
 
