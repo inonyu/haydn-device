@@ -3,4 +3,9 @@
 # sheng-platform-power is the shared AMFI/PMGR hook: it calls sheng_pmgr_run()
 # from bsd_init when XNU_SHENG_PMGR=1, and the device package supplies that
 # symbol (a provider-less ApplePMGRNub plus the touch bring-up).
+#
+# It lives in patches/xnu/ of the architecture repository too, but the SM8350
+# config and board.toml both set CONFIG_XNU_SHENG_PMGR=y, so a copy is vendored
+# here: a series that names a patch it does not carry is a broken series, and
+# `unixnu status` is right to refuse it.
 sheng-platform-power.patch
