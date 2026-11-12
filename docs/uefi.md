@@ -123,6 +123,40 @@ is vendored beside it rather than referenced across repositories. It calls
 board's defconfig and `soc/sm8350/configs/sm8350.config` set it — the patch and
 the config that needs it travel together.
 
+### The volume that came out
+
+Run 13 is the first green one, and the artifact was downloaded and checked
+rather than assumed:
+
+```
+fd/SILICIUM_UEFI.fd      2,097,152 bytes   0x200000 exactly
+  first 16 bytes         a8 26 00 14 00 ...            reset vector
+  FvLength               00 00 20 00 00 00 00 00       0x200000
+  Signature              "_FVH"                        a valid FV
+  "Redmi K40 Pro"        present at 0xb318             this board's SMBIOS
+
+Mu-haydn.img             1,116,160 bytes
+  magic                  "ANDROID!"                    a real boot image
+  kernel_size            1,111,772
+  page_size              2,048
+  kernel payload         gzip, name "SILICIUM_UEFI.fd-bootshim"
+  decompressed           2,097,264 bytes
+  byte 112 onward        identical to the .fd above    BootShim is 112 bytes
+```
+
+Two things that are *not* in it, both verified by searching the image:
+
+- **No panel table.** `mdss_dsi_k11`, `mdss_dsi_venus`, `mdss_dsi_`,
+  `pm8350`, `pmk8350` and `pmr735a` are all absent. `USE_CUSTOM_DISPLAY_DRIVER
+  = 0` and the absent `AcpiTables.inf` mean the venus binaries were never
+  pulled in as board tables — they were only needed as `Binaries/` inputs.
+- **No sibling board's identity.** `Mi 11`, `M2011K2G` and `11T Pro` are
+  absent, while `Redmi K40 Pro` is present.
+
+That is a weaker statement than "safe to flash" and it is meant to be: the
+volume still has no ACPI tables and no display driver, so it has no way to put
+anything on the screen. It brings the board up and stops.
+
 ### Still missing
 
 The `Binaries/` files themselves. They are Qualcomm's and the phone's; this
