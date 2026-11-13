@@ -1,0 +1,46 @@
+; Android fastboot interface for Windows.
+;
+; Windows has no inbox driver for the fastboot/bootloader interface, so a phone
+; sitting in bootloader mode shows up as an unknown device and `fastboot devices`
+; prints nothing. This binds WinUSB to it, which is all fastboot needs.
+;
+; Scope: exactly two hardware ids, the Android bootloader ones. Nothing else is
+; touched. See docs/install.md for why the phone ends up in this mode.
+;
+; Install (needs an Administrator prompt):
+;   pnputil /add-driver fastboot_winusb.inf /install
+; or right-click this file -> Install.
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = USBDevice
+ClassGuid   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider    = %ProviderName%
+CatalogFile = fastboot_winusb.cat
+DriverVer   = 11/13/2026,1.0.0.0
+
+[Manufacturer]
+%ProviderName% = DeviceList, NTamd64
+
+[DeviceList.NTamd64]
+%DeviceName% = USB_Install, USB\VID_18D1&PID_D00D
+%DeviceName% = USB_Install, USB\VID_18D1&PID_D00D&MI_01
+%DeviceName% = USB_Install, USB\VID_2717&PID_FF48
+
+[USB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[USB_Install.HW]
+AddReg = Dev_AddReg
+
+[Dev_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{a5dcbf10-6530-11d2-901f-00c04fb951ed}"
+
+[Strings]
+ProviderName = "haydn-device"
+DeviceName   = "Android Fastboot"
