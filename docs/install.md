@@ -196,6 +196,22 @@ If #1 is still refused, #2 is the interesting one: every field in it is copied
 from an image that is known to load on a Qualcomm ABL, so a refusal there says
 the restriction is on this bootloader rather than in the header.
 
+### Where the work stands, honestly
+
+| | State |
+| --- | --- |
+| Windows driver | **solved** and scripted (`drivers/windows/Make-FastbootDriver.ps1`) |
+| `fastboot devices` sees the phone | **yes**, `56db9cb7 fastboot` |
+| Bootloader command support | measured; `getvar` and `reboot-bootloader` refused |
+| Boot image shape | **fixed**: the build now emits v3 / 4096-byte pages, verified in the artifact and enforced by `scripts/verify-volume.py` |
+| `fastboot boot` reaches the ABL | **yes**, and the ABL refuses with `Load Error` |
+| The v3 image has been tried | **no** — the phone left USB (powered off) before it could be |
+| Anything written to any partition | **no** |
+
+The single unrun step is `fastboot -v boot` on the v3 image. Everything needed
+for it is in place: the image, six fallbacks, and `tools/test-boot.ps1` to try
+them in one pass.
+
 ### The phone dropped off USB
 
 After the variant sweep the handset stopped enumerating entirely — no
