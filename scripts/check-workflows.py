@@ -72,7 +72,11 @@ for name in files:
         check('%s: %s exists' % (name, rel), os.path.exists(os.path.join(ROOT, rel)), rel)
 
     # The inline device config must agree with the repository's own numbers.
-    inline = re.search(r"cat > (\S+) <<'EOF'\n(.*?)\n\s*EOF", text, re.S)
+    #
+    # shim.yml writes a mkbootimg wrapper script, not a device config, so it has
+    # no [uefi_fd] block to compare. Only a heredoc that creates a .toml is in
+    # scope here; anything else is a different kind of script.
+    inline = re.search(r"cat > (\S+\.toml) <<'EOF'\n(.*?)\n\s*EOF", text, re.S)
     if inline:
         body = inline.group(2)
         dsc = read(os.path.join(ROOT, 'platform', 'haydnPkg', 'haydn.dsc'))
