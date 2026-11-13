@@ -10,6 +10,7 @@
 #include "console.h"
 #include "mmu.h"
 #include "loader.h"
+#include "fdt.h"
 #include "ufs.h"
 
 /* haydn: the phone's own FDT puts the IMEM base at 0x146bf000 (restart_reason@65c
@@ -403,13 +404,35 @@ void shim_main(uint64_t dtb)
 	/*
 	 * Halt and hold: paint what happened and stop here for good.
 	 *
-	 * This decides between two explanations for what follows `fastboot boot`:
-	 * either the image runs and something inside it resets the board, or the
-	 * boot loader gives up and returns to Android by itself. A build that
-	 * never resets and never jumps settles it - if the phone is still off the
-	 * USB bus minutes later, the image ran and halted.
+	 * Measured 2026-11-13 17:51: this works. The panel shows the red console
+	 * and the phone never returns to the boot loader, which is the proof that
+	 * the image runs. Everything from here down is instrumentation for the
+	 * next question - how far into loader_boot it gets.
 	 */
-	con_str("MODE", "HOLD - not jumping, not resetting");
+	con_skip();
+	con_str("HOLD", "not jumping, not resetting");
+	con_str("FB", "this text is 0xdfc00000 (splash_region)");
+
+	/* Read the payload by hand, one field at a time, and show each one. */
+	{
+		uint64_t rd_start = 0, rd_end = 0;
+		int have = fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) &&
+			   fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end);
+		if (!have) {
+			con_str("INITRD", "NOT in /chosen - ramdisk never reached us");
+		} else {
+			con_hex2("INITRD", "lo=", (uint32_t)rd_start, "hi=", (uint32_t)rd_end);
+			con_hex2("SIZE", "mb=", (uint32_t)((rd_end - rd_start) >> 20), "..=", 0);
+			const volatile uint32_t *p32 = (const volatile uint32_t *)rd_start;
+			uint32_t m0 = p32[0], m1 = p32[1];
+			char m[9];
+			for (int i = 0; i < 8; i++)
+				m[i] = (char)((i < 4 ? (m0 >> (8 * i)) : (m1 >> (8 * (i - 4)))) & 0xff);
+			m[8] = 0;
+			con_str("MAGIC", m);
+			con_str("WANT", "SWEETXNU");
+		}
+	}
 	for (;;)
 		__asm__ volatile("wfi");
 #endif

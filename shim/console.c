@@ -5,10 +5,20 @@
 #include "console.h"
 #include "font.h"
 
-#define SCALE		3
+/*
+ * SCALE 2, not 3, and the whole layout starts below the top of the panel.
+ *
+ * Measured on the phone 2026-11-13 17:51: at SCALE 3 with MARGIN 24 the first
+ * line sits under the punch-hole camera, which is why the user reported "the
+ * front opening covers part of it". At 1080x2400 a scale-3 glyph is 24x48 px,
+ * so only ~20 lines fit and the first one is hidden; scale 2 gives 16x32 px and
+ * ~70 lines, and TOP_MARGIN clears the camera cutout.
+ */
+#define SCALE		2
 #define CH_W		(8 * SCALE)
 #define CH_H		(16 * SCALE)
 #define MARGIN		24
+#define TOP_MARGIN	180
 #define LABEL_COLS	8
 
 volatile uint32_t *con_fb = (volatile uint32_t *)FB_BASE;
@@ -31,7 +41,7 @@ static void put_char(int col, char ch, uint32_t fg)
 	if (ch < 0x20 || ch > 0x7e)
 		ch = '?';
 	const unsigned char *g = font8x16[ch - 0x20];
-	int x0 = MARGIN + col * CH_W, y0 = MARGIN + row * CH_H;
+	int x0 = MARGIN + col * CH_W, y0 = TOP_MARGIN + row * CH_H;
 	if (x0 + CH_W > FB_W || y0 + CH_H > FB_H)
 		return;
 	for (int gy = 0; gy < 16; gy++)
