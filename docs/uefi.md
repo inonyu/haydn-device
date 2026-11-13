@@ -135,13 +135,32 @@ fd/SILICIUM_UEFI.fd      2,097,152 bytes   0x200000 exactly
   Signature              "_FVH"                        a valid FV
   "Redmi K40 Pro"        present at 0xb318             this board's SMBIOS
 
-Mu-haydn.img             1,116,160 bytes
+Mu-haydn.img             1,116,160 bytes      (run 13; superseded, see below)
   magic                  "ANDROID!"                    a real boot image
   kernel_size            1,111,772
   page_size              2,048
   kernel payload         gzip, name "SILICIUM_UEFI.fd-bootshim"
   decompressed           2,097,264 bytes
   byte 112 onward        identical to the .fd above    BootShim is 112 bytes
+
+That image was **v1 at 2048-byte pages**, and the phone rejected it. The build
+now emits v3 and the first artifact from it measures:
+
+```
+run 43380723030 (commit 5203f8c), downloaded and checked 2026-11-13:
+Mu-haydn.img             1,122,304 bytes
+  magic                  "ANDROID!"
+  header_version         3
+  header_size            1,580
+  page_size              4,096
+  kernel_size            1,111,676
+  kernel offset          4,096                          one page
+  kernel payload         gzip (1f 8b 08), decompresses to 2,097,264 bytes
+  byte 112 onward        identical to the .fd above    BootShim is 112 bytes
+```
+
+The volume is unchanged: `SILICIUM_UEFI.fd` is still 2,097,152 bytes and still
+passes every identity check. Only the wrapper around it changed.
 ```
 
 Two things that are *not* in it, both verified by searching the image:

@@ -89,6 +89,25 @@ def check_fd(path):
             check(label, not present, 'found at 0x%x' % find(text, s))
 
 
+def boot_image_layout(img):
+    """(header_version, page_size, header_size, kernel_size) for an ANDROID! image.
+
+    The header version is not at a fixed offset: v0-v2 carry page_size at 36 and
+    header_version at 40, while v3/v4 replace both with header_size at 20 and put
+    header_version at 40 as well. Reading page_size at 36 from a v3 image returns
+    part of the os_version field, which is how an earlier version of this script
+    "proved" a 2048-byte page on an image that has no such field.
+    """
+    kernel_size = struct.unpack('<I', img[8:12])[0]
+    version = struct.unpack('<I', img[40:44])[0]
+    if version >= 3:
+        header_size = struct.unpack('<I', img[20:24])[0]
+        return version, 4096, header_size, kernel_size
+    page_size = struct.unpack('<I', img[36:40])[0]
+    header_size = 1632 if version == 0 else 1648 if version == 1 else 1660
+    return version, page_size, header_size, kernel_size
+
+
 def check_img(path, fd_path):
     data = read(fd_path)
     img = read(path)
@@ -96,16 +115,31 @@ def check_img(path, fd_path):
     print('%s: %d bytes' % (os.path.basename(path), len(img)))
 
     check('it is an Android boot image', img[:8] == b'ANDROID!', str(img[:8]))
-    kernel_size = struct.unpack('<I', img[8:12])[0]
-    page_size = struct.unpack('<I', img[36:40])[0]
-    check('the page size is 2048', page_size == 2048, str(page_size))
+    if img[:8] != b'ANDROID!':
+        return
+
+    version, page_size, header_size, kernel_size = boot_image_layout(img)
+    print('  header_version %d, page_size %d, header_size %d, kernel_size %d'
+          % (version, page_size, header_size, kernel_size))
+
+    # This board launches through vendor_boot on Android 13, so the boot image
+    # has to be v3+ (4096-byte pages). v1/2048 was rejected by the phone with
+    # "Failed to load/authenticate boot image: Load Error"; see docs/install.md.
+    check('the header version is 3 or later', version >= 3, str(version))
+    check('the page size is 4096', page_size == 4096, str(page_size))
     check('the kernel section is not empty', kernel_size > 0, str(kernel_size))
-    check('the kernel section fits the file', 2048 + kernel_size <= len(img))
+
+    rnd = lambda n: (n + page_size - 1) // page_size * page_size   # noqa: E731
+    kernel_off = rnd(header_size)
+    check('the kernel section fits the file',
+          kernel_off + kernel_size <= len(img),
+          '%d > %d' % (kernel_off + kernel_size, len(img)))
 
     import gzip
     import io
     try:
-        payload = gzip.GzipFile(fileobj=io.BytesIO(img[2048:2048 + kernel_size])).read()
+        payload = gzip.GzipFile(
+            fileobj=io.BytesIO(img[kernel_off:kernel_off + kernel_size])).read()
     except Exception as e:                       # noqa: BLE001 - report, do not raise
         check('the kernel section decompresses', False, str(e))
         return
