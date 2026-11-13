@@ -152,8 +152,17 @@ jobs:
           kernel_compression = "gzip"
           append_dtb         = false
 
+          # header_version 3, not 1.
+          #
+          # The published image used to be v1 at 2048-byte pages, and the phone's
+          # ABL rejected it: "Failed to load/authenticate boot image: Load Error",
+          # before any of our code ran (docs/install.md). This board is Android 13
+          # on SM8350 and launches through vendor_boot, which is the v3+ layout.
+          #
+          # mkbootimg.py derives the page size from the header version (v3/v4 ->
+          # 4096), so this one number is the whole fix; there is no --pagesize.
           [boot_image]
-          header_version = 1
+          header_version = 3
           EOF
           cat Mu-Silicium/Resources/Configs/haydn.toml
 
