@@ -353,6 +353,9 @@ evidence = [
   "Mu-haydn.img from that run measured on 2026-11-13: ANDROID! header, page_size 2048, header_version 1, kernel_size 1,111,772, ramdisk_size 5.",
   "The phone's ABL rejected it on 2026-11-13: fastboot -v boot -> 'Sending boot.img (1090 KB) OKAY' then 'Booting FAILED (remote: Failed to load/authenticate boot image: Load Error)'. Without -v fastboot prints Sending and then nothing at all, which reads like a hang and is not one.",
   "Root cause: the CI step wrote its own haydn.toml with header_version 1 while board.toml says 3. Both copies now say 3 and check-workflows.py compares them against board.toml so it cannot drift again (commit fe46273, workflow edit 74bb285).",
+  "Rebuilt and retried on 2026-11-13 17:02: fastboot -v boot Mu-haydn-v3.img -> Sending OKAY, Booting OKAY, 0.535 s. The v1 image was refused minutes earlier on the same bootloader, so the header version was the whole difference and this bootloader does permit booting a non-stock image.",
+  "The hand-off did not continue. The phone left the USB bus within 2 s, stayed off for 150 s, and came back as a cold Android boot; before that next boot it recorded sys.boot.reason = bootloader, which a control reboot proves is not the string Android produces for a normal restart (that one reads reboot,shell). Accepted, started, then reset back to the boot loader.",
+  "Consequence: the payload faults before it can report anything, and with no console attached the reset is the only evidence. tools/test-boot.ps1 tries the six prepared shapes in one pass for the next session.",
 ]
 
 [[area]]

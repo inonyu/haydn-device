@@ -232,7 +232,53 @@ same host-side signature as a hang. Distinguishing them needs either a serial
 console (the loader can reach `ttyMSM0` at 115200 8N1 per the vendor cmdline) or
 a frame buffer the volume can paint to, and neither was attached.
 
-So the honest statement is: **the image booted; where it stopped is unknown.**
+So the honest statement was: **the image booted; where it stopped is unknown.**
+
+### Resolved the same evening: it did not run
+
+The phone came back on adb at 17:04:55, and its own record says what happened
+after the jump:
+
+```
+$ adb shell getprop sys.boot.reason
+bootloader
+$ adb shell getprop ro.boot.bootreason
+bootloader
+$ adb shell cat /proc/uptime
+25.57 70.96
+```
+
+`sys.boot.reason` is the SMEM/IMEM "why did this boot happen" record, and it
+survived the boot that followed. The control experiment decides what the value
+means:
+
+```
+$ adb reboot ; # wait for it to come back
+$ adb shell getprop sys.boot.reason
+reboot,shell
+```
+
+A normal reboot records its cause. This phone recorded **`bootloader`**, which is
+not a cause Android produces — it is the marker left when the boot loader is
+asked to boot and the attempt comes back. Combined with the phone being off the
+bus for 150 s and then appearing as a **cold** Android boot (uptime 25 s, no
+fastboot re-entry, no crash dump), the reading that fits every observation is:
+
+> **the image was accepted and started, and then reset the board back to the
+> boot loader** — the hand-off happens, and whatever runs next faults and
+> reboots before anything can be reported.
+
+That is exactly the failure `shim.c` was written to make visible: *a restarted
+board is what a fault looks like* when there is no console. So `Booting OKAY`
+was real and the payload was real; the **stop is a reset**, not a halt.
+
+Which also means the earlier statement "a hang and a stop look the same from the
+host" was too pessimistic — the phone keeps the evidence, it just has to be read
+before the next boot overwrites it. Read it **first**, then power-cycle:
+
+```
+adb shell getprop sys.boot.reason     # bootloader = the jump came back
+```
 
 ### Getting the phone back
 
@@ -248,8 +294,9 @@ nothing, so there is nothing to undo.
 | Bootloader command support | measured; `getvar` and `reboot-bootloader` refused |
 | Boot image shape | **fixed**: the build now emits v3 / 4096-byte pages, verified in the artifact and enforced by `scripts/verify-volume.py` |
 | `fastboot boot` reaches the ABL | **yes**, and the ABL refuses with `Load Error` |
-| The v3 image has been tried | **yes** — `Booting OKAY` at 17:02; see above |
-| Anything written to any partition | **no** |
+| The v3 image has been tried | **yes** — `Booting OKAY` at 17:02, and the phone then recorded `sys.boot.reason = bootloader`: accepted, started, and reset back |
+| Anything written to any partition | **no** — `fastboot boot` is RAM only |
+| Why the payload did not continue | **open** — no console attached; the reset marker proves it faulted rather than halted |
 
 The single unrun step is `fastboot -v boot` on the v3 image. Everything needed
 for it is in place: the image, six fallbacks, and `tools/test-boot.ps1` to try
