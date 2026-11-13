@@ -146,6 +146,28 @@ earlier porting record's numbers were right; only its PHY address was wrong.
 - There is **no** `/dev/graphics/`: the only frame buffer available before a
   native display driver exists is the one the boot loader leaves at
   `0xdfc00000` (reserved as `splash_region`).
+- **The region is `0xdfc00000 + 0x2300000`, not `+ 0x1000000`.** The phone's own
+  reserved-memory node (`cont_splash_region`) and
+  `xiaomi-haydn-dev/UniXNU-haydn PORTING.md` §2 both give `0x2300000`; an earlier
+  version of this file said `0x1000000`, which would map only the top third of a
+  1080x2400 panel. `tools/mkadt-haydn.py` now uses the measured size.
+
+## Facts the sibling ports measured that this document did not have
+
+Three numbers below decide whether a kernel boot survives past its first
+device access. All three come from `xiaomi-haydn-dev/UniXNU-haydn PORTING.md`,
+which cites its own on-device notes (`haydn/M3.md`), so they are second-hand
+relative to this document's own FDT reads and are marked as such.
+
+| Fact | Value | Why it matters |
+| --- | --- | --- |
+| Physical timer | **unusable at EL1** — QHEE owns `CNTP_*`, an EL1 write traps UNDEF | XNU must run on `CNTV` alone; a port that programs the physical timer takes an undefined-instruction fault on its first tick |
+| UFS supply | **PM8350 L7 `ldob7`, 2504-2952 mV, must be voted** | the ABL may not have voted it; without the vote the first UFS access hangs. The Sweet route records this as the fix for exactly that hang |
+| UFS DMA | **cannot reach above 4 GiB** | `sweet_ufs.c` was rewritten to bounce, and even then the kernel window has to sit below 4 GiB or it reports `no contiguous DMA memory` |
+
+The restart reason this document inferred from `sys.boot.reason` has a register:
+**IMEM `0x146bf000 + 0x65c`**. `0x77665500` there means "back to the boot
+loader", which is what the 17:02 run left behind.
 
 ## Touch — FocalTech over SPI
 

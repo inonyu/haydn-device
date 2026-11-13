@@ -23,12 +23,24 @@ OUT = os.environ.get("HAYDN_ADT",
                      os.path.join(os.path.dirname(__file__), "haydn.adt"))
 
 # --- this board's numbers, each traceable to docs/hardware.md --------------
-# RAM: the ADT window has to sit inside a real segment and above the
-# bootloader's own carve-outs. The phone reports three windows:
-#   0x80000000 + 0x39700000, 0x180000000 + 0x100000000, 0xc0000000 + 0xc0000000
-# 512 MiB from 0x80000000 stays inside the first one.
-PHYS_BASE = 0x80000000
-MEM_SIZE = 0x20000000
+# RAM: the ADT window has to sit inside a real segment AND stay 32-bit
+# addressable. Both constraints come from hardware, not preference:
+#
+#   * the phone reports 0xc0000000 + 0xc0000000 as a real DRAM window, so the
+#     base is valid;
+#   * the SM8350 UFS controller cannot DMA above 4 GiB. On this exact board the
+#     Sweet route hit "SWEET UFS: no contiguous DMA memory" and READ(10)
+#     timeouts whenever the kernel window sat high, and the fix was to move the
+#     ADT window down into a sub-4-GiB window
+#     (xiaomi-haydn-dev/UniXNU-haydn PORTING.md section 5, quoting haydn/M3.md
+#     fix chain #4).
+#
+# PORTING.md writes that fix as "0xC0000000 + 3 GiB". Read literally that ends
+# at 0x180000000, i.e. 2 GiB ABOVE the 4 GiB line, so it does not do what the
+# sentence says it does. This file therefore takes the intent rather than the
+# arithmetic: start at 0xC0000000 and stop 1 MiB short of 4 GiB.
+PHYS_BASE = 0xC0000000
+MEM_SIZE = 0x3FF00000          # 1023 MiB, so the window ends at 0xFFF00000
 PANIC_LOG_SIZE = 0x100000
 
 GICD, GICD_SIZE = 0x17a00000, 0x10000
@@ -36,9 +48,16 @@ GICR, GICR_SIZE = 0x17a60000, 0x100000     # stride 0x20000, 8 PEs
 TIMEBASE = 19200000
 # docs/hardware.md: arm,armv8-timer interrupts = PPI 13/14/11/12
 #   -> secure-phys 29, phys 30, virt 27, hyp 28
+# Independently confirmed on this board by the Sweet route, which puts the
+# virtual timer at INTID 27 and notes the physical timer is dead at EL1: QHEE
+# owns CNTP_* and an EL1 write traps UNDEF (PORTING.md §2).
 VTIMER_INTID = 27
 
-FB, FB_SIZE = 0xdfc00000, 0x1000000          # splash_region the loader leaves
+# docs/hardware.md called this 0x1000000; the phone's own reserved-memory node
+# says 0x2300000 (cont_splash_region), and PORTING.md §2 quotes the same size.
+# The smaller value would let the kernel map over the panel's upper half.
+FB, FB_SIZE = 0xdfc00000, 0x2300000          # cont_splash_region, 1080x2400
+
 FB_W, FB_H = 1080, 2400
 FB_STRIDE = FB_W * 4
 

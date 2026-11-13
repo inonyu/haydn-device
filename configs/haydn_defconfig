@@ -33,3 +33,14 @@ CONFIG_XNU_BOOT_PROGRESS=y
 
 # The PMGR call site the SM8350 platform code expects.
 CONFIG_XNU_SHENG_PMGR=y
+
+# UFS needs PM8350 L7 (ldob7) voted on before the first access, or the
+# controller hangs. Confirmed on this board by the Sweet route: the vote at
+# 2952 mV is what fixed the hang (xiaomi-haydn-dev/UniXNU-haydn PORTING.md,
+# quoting haydn/M3.md). Without this the kernel mounts nothing.
+CONFIG_XNU_HAYDN_UFS_VCC_VOTE=y
+
+# The physical timer is not usable here: QHEE owns CNTP_* and an EL1 write
+# traps UNDEF, so the kernel must run on CNTV alone. virtual-timer-intid 27 in
+# the ADT is the other half of that.
+CONFIG_XNU_TIMER_VIRTUAL_ONLY=y
