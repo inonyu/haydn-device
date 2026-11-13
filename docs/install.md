@@ -100,25 +100,80 @@ found')` for `product`, `unlocked`, `max-download-size`, `slot-count`) **and it
 also rejects `reboot-bootloader`** (`FAILED (remote: 'unknown command')`). Do not
 script on either; `fastboot devices` is the only reliable probe.
 
-**`fastboot boot` never completed (measured 2026-11-13).** Four attempts, all of
-them stopping at the same place:
+## `fastboot boot` — the first real answer (measured 2026-11-13)
+
+The download works and the ABL **rejects the image**:
 
 ```
-$ fastboot boot Mu-haydn.img
-Sending 'boot.img' (1090 KB)
-<never returns>
+$ fastboot -v boot Mu-haydn.img
+Sending 'boot.img' (1090 KB)                       OKAY [ 0.028s]
+Booting                                            FAILED (remote: 'Failed to load/authenticate boot image: Load Error')
 ```
 
-It hangs in the download phase, not at the jump: the phone stayed in bootloader
-mode and kept answering `fastboot devices` after each 100-150 s timeout and
-kill. `--max-download-size` is not an option this fastboot has, so the
-"negotiate a smaller download" workaround is not available either. The host
-side of this is **unfinished**: the image is built and the driver binds, but one
-successful `fastboot boot` has not been observed on this machine.
+Getting that line required `-v`. Without it, `fastboot` prints
+`Sending 'boot.img' (1090 KB)` and then **stalls with no further output at all**
+— four separate attempts sat there for 100-150 s each and had to be killed, and
+the phone answered `fastboot devices` throughout. Read that as "the host is
+waiting on a REJECT it will not surface without `-v`", not as a hang in the
+transfer. Always pass `-v` on this board.
 
-If a later attempt gets past `Sending`, the next line should be
-`Booting OKAY`, then the screen. Anything else is a different failure and
-should be recorded here with its exact output.
+`Load Error` is the ABL refusing the image before any of our code runs, so it
+is a packaging question and not a boot-progress one.
+
+### Why the image is the wrong shape
+
+Two files in this repository disagree, and the artifact followed the wrong one:
+
+| Record | Says |
+| --- | --- |
+| `board.toml` `[bootimg.image]` | `header_version = 3`, `pagesize = 4096` |
+| `platform/haydnPkg/haydn.toml` | `header_version = 1` |
+| `.github/workflows/build.yml` | writes its **own** `haydn.toml` inline with `header_version = 1` |
+
+The CI step regenerates the device config rather than copying the one in
+`platform/haydnPkg`, so the repository's `header_version` is not what gets
+built. The artifact was measured:
+
+```
+Mu-haydn.img   ANDROID!  kernel_size 1,111,772  page_size 2,048  header_version 1
+               ramdisk_size 5 (an empty page)  tags_addr 0x10000100
+```
+
+An SM8350 board on Android 13 launches through `vendor_boot` and expects
+header v3/v4 at 4096-byte pages; a v1 image at 2 KiB pages is what `Load Error`
+is about. `build_uefi.py` never passes `--pagesize` (its `argument_map` has no
+such key) or `--header_version` 3/4 with the matching layout, so fixing this is
+a change to the build, not to the phone.
+
+Six repackaged variants of the same payload (v0/v1/v3/v4 × 2048/4096) were
+prepared under `out/bootimg-variants/` for the next session; none of them could
+be tried, because the phone left the bus first (below).
+
+### The phone dropped off USB
+
+After the variant sweep the handset stopped enumerating entirely — no
+`VID_18D1`, no `VID_05C6` EDL, nothing under any USB class, and a forced
+`pnputil /scan-devices` found no new device. The bootloader had accepted
+`oem poweroff` (`OKAY`) shortly before, and the last variant exchange ended in
+`Status read failed (Too many links)`, so the board is most likely simply off.
+**It needs a physical power-button press to come back**, which is why this
+record stops here rather than at a screen photo.
+
+Other commands, measured on the same session, so the next attempt does not
+rediscover them:
+
+| Command | Result |
+| --- | --- |
+| `fastboot continue` | `Resuming boot OKAY` — resumes **Android**, not our image |
+| `fastboot reboot` | works, but may re-enter the bootloader |
+| `fastboot reboot-bootloader` | `unknown command` (worked once, then not) |
+| `fastboot reboot recovery` | falls back to a normal Android boot on this phone |
+| `fastboot --set-active=a` | `OKAY` |
+| `fastboot oem poweroff` | `OKAY` (and the device stayed visible) |
+| `fastboot oem device-info` | `unknown command` |
+| `fastboot flashing get_unlock_ability` | `unknown command` |
+| `fastboot getvar …` | `GetVar Variable Not found` for every variable |
+| `adb shell su -c …` | `su: inaccessible or not found` — no root shell on this MIUI build |
 
 `fastboot boot` loads the image into DDR and jumps to it. It does not write
 `boot_a`, and a power cycle puts Android back. The worst case is a black screen.
