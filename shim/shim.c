@@ -399,6 +399,12 @@ void shim_main(uint64_t dtb)
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
+#ifdef HAYDN_PREPARE_ONLY
+	/* Keep the numbers on the panel: this build exists to be read, not to run. */
+	con_str("STAGE", "prepare-only, holding panel");
+	delay_ms(60000);
+	reset(20);
+#endif
 
 	/* No payload: probe the internal UFS while the MMU is still off. */
 	stage = "ufs";

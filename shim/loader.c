@@ -140,8 +140,22 @@ const char *loader_boot(uintptr_t dtb)
 	con_hex("JUMP", entry_pa);
 	con_str("XNU", "jumping (fbcon clears screen)");
 
+#ifdef HAYDN_PREPARE_ONLY
+	/*
+	 * Diagnostic build: do everything up to the jump and then come back.
+	 *
+	 * This exists because the payload path is all-or-nothing - either XNU
+	 * starts and the panel is handed to it, or the board resets and there is
+	 * nothing to read. Preparing without jumping proves the payload parses,
+	 * every segment lands at its physical address and boot_args is well formed,
+	 * and leaves the numbers on a panel that stays up.
+	 */
+	con_str("MODE", "prepare only, not jumping");
+	return "prepared, not jumping";
+#else
 	/* Everything was written with the MMU and caches off; drop any stale I-cache lines too. */
 	__asm__ volatile("dsb sy; ic iallu; dsb sy; isb" ::: "memory");
 	((xnu_entry_t)entry_pa)(ba_pa);
+#endif
 	return "xnu returned";
 }
