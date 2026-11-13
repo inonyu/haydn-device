@@ -1,7 +1,9 @@
 # Installing
 
-**Nothing here has been run on a phone.** This page records the shape the
-install has to take and the two facts that decide it.
+**Part of this has now been run on the phone.** The Windows side is solved, the
+bootloader answers, and `fastboot boot` reaches the ABL and is refused with
+`Load Error` — see the section of that name below. Nothing has been written to
+any partition.
 
 ## The two facts
 
@@ -10,9 +12,10 @@ install has to take and the two facts that decide it.
    sibling work says the same in one line: *"installs into the userdata
    partition and so erases Android's user data"*.
 2. **The phone is unlocked.** `ro.boot.verifiedbootstate=orange`,
-   `ro.boot.flash.locked=0`. `fastboot boot` works, so a RAM-only session —
-   loader, kernel and payload in memory, nothing written — is available
-   before any partition is touched.
+   `ro.boot.flash.locked=0`. `fastboot boot` was expected to work on that basis,
+   and it is now measured: the command is accepted, the image transfers, and the
+   ABL then refuses to load it (`Load Error`). Unlock status alone did not make
+   this path work.
 
 ## Order
 
@@ -179,7 +182,7 @@ rediscover them:
 
 | Command | Result |
 | --- | --- |
-| `fastboot continue` | `Resuming boot OKAY` — resumes **Android**, not our image |
+| `fastboot continue` | **both outcomes seen**: `Resuming boot OKAY` (then Android came up on adb) and, on a later session, `Resuming boot FAILED (remote: 'Failed to load image from partition: Load Error')` — see below |
 | `fastboot reboot` | works, but may re-enter the bootloader |
 | `fastboot reboot-bootloader` | `unknown command` (worked once, then not) |
 | `fastboot reboot recovery` | falls back to a normal Android boot on this phone |
