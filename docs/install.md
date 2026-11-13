@@ -218,6 +218,35 @@ path. So the reset is **late**, which fits a fault partway through
 `loader_boot`: the payload is found, the segments are being copied, and
 something in the middle of that touches an address that is not there.
 
+### The image runs: a build that never resets never comes back (measured 17:51)
+
+Three builds, all the same payload, differing only in what they do after the
+point of interest. This is the measurement that ends the guessing:
+
+| Build | After preparing | Host saw | Phone came back? |
+| --- | --- | --- | --- |
+| `shim-boot-haydn.img` | jumps to XNU | off the bus | yes, `sys.boot.reason = bootloader`, after ~135 s |
+| `shim-prepare.img` | returns, holds 60 s, calls `reset(20)` | off the bus | yes, reason `bootloader`, after ~88 s |
+| `shim-hold.img` (`-DHAYDN_HOLD`) | **`for(;;) wfi` — never resets, never jumps** | off the bus | **no. Still absent at 4 m 40 s**, no fastboot, no adb, no error device, across an `adb kill-server` and a forced PnP rescan |
+
+The third row is the whole result. A build that **cannot** return to Android, and
+that stays gone past every window in which the other two came back, is a build
+that **executed and then halted exactly where it was told to**. The boot loader
+did not give up and fall back to Android; the boot loader handed over and the
+image kept control.
+
+So the sequence is no longer in doubt:
+
+1. `fastboot boot` transfers the image and jumps to it — `Booting OKAY`;
+2. the ABL entry at `_head` runs, the stack and vectors come up;
+3. `shim_main` runs — code compiled from this repository reached;
+4. and then it either halts (hold build) or resets (the other two).
+
+What is still unknown is **where in `shim_main` it gets to**. The hold build
+paints `MODE HOLD - not jumping, not resetting` on the panel before it stops, so
+the screen is the record — and that has to be read by a person, because the
+board is off the bus by design.
+
 ### The next distinction to make
 
 `loader_boot` prints before it copies, between the two `con_skip()` calls, and

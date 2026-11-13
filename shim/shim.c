@@ -399,6 +399,20 @@ void shim_main(uint64_t dtb)
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
+#ifdef HAYDN_HOLD
+	/*
+	 * Halt and hold: paint what happened and stop here for good.
+	 *
+	 * This decides between two explanations for what follows `fastboot boot`:
+	 * either the image runs and something inside it resets the board, or the
+	 * boot loader gives up and returns to Android by itself. A build that
+	 * never resets and never jumps settles it - if the phone is still off the
+	 * USB bus minutes later, the image ran and halted.
+	 */
+	con_str("MODE", "HOLD - not jumping, not resetting");
+	for (;;)
+		__asm__ volatile("wfi");
+#endif
 #ifdef HAYDN_PREPARE_ONLY
 	/* Keep the numbers on the panel: this build exists to be read, not to run. */
 	con_str("STAGE", "prepare-only, holding panel");
