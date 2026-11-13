@@ -15,5 +15,13 @@ size = 0x00200000
 kernel_compression = "gzip"
 append_dtb         = true
 
+# header_version 3 + 4096-byte pages, matching board.toml [bootimg.image].
+#
+# This file used to say 1, and the CI step wrote its own copy with 1 as well, so
+# the published Mu-haydn.img came out as a v1 / 2048-byte-page image. The phone's
+# ABL rejected it: "Failed to load/authenticate boot image: Load Error", before
+# any of our code ran. This board is Android 13 / SM8350 and launches through
+# vendor_boot, which is the v3+ layout. See docs/install.md for the measurement.
 [boot_image]
-header_version = 1
+header_version = 3
+pagesize       = 4096

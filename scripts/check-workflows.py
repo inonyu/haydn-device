@@ -94,6 +94,26 @@ for name in files:
                   int(inline_size.group(1), 16) == dsc_size,
                   '%s vs %s' % (inline_size.group(1), hex(dsc_size)))
 
+        # The boot image header, which is the one number that cost a phone boot.
+        #
+        # The published image was v1 at 2048-byte pages and the ABL answered
+        # "Failed to load/authenticate boot image: Load Error" before any of our
+        # code ran (docs/install.md). board.toml and platform/haydnPkg/haydn.toml
+        # both said 3; this inline copy said 1, and the inline copy is the one
+        # that gets built. Compare all three so the drift cannot come back.
+        inline_hv = re.search(r'header_version\s*=\s*(\d+)', body)
+        check('%s: the inline config gives a header_version' % name,
+              inline_hv is not None)
+        if inline_hv:
+            for rel in ('platform/haydnPkg/haydn.toml', 'board.toml'):
+                other = re.search(r'header_version\s*=\s*(\d+)',
+                                  read(os.path.join(ROOT, rel)))
+                if not other:
+                    continue
+                check('%s: header_version %s is %s\'s' % (name, inline_hv.group(1), rel),
+                      inline_hv.group(1) == other.group(1),
+                      '%s vs %s' % (inline_hv.group(1), other.group(1)))
+
     # The Binaries the workflow seeds must be a set that exists upstream.
     m = re.search(r'cp -r Binaries/(\w+) Binaries/(\w+)', text)
     if m:
