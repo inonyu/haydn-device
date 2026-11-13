@@ -167,6 +167,35 @@ Six repackaged variants of the same payload (v0/v1/v3/v4 × 2048/4096) were
 prepared under `out/bootimg-variants/` for the next session; none of them could
 be tried, because the phone left the bus first (below).
 
+### The v3 rebuild, and how the first attempt will be run
+
+The build now emits v3 at 4096-byte pages (`board.toml`, `haydn.toml` and the
+CI step all agree, and `verify-volume.py` fails an image that is not). The first
+artifact from it measures:
+
+```
+Mu-haydn.img   1,122,304 bytes
+  header_version  3     header_size 1,580     page_size 4,096
+  kernel_size     1,111,676        kernel offset 4,096
+  gzip payload    decompresses to 2,097,264 bytes = BootShim 112 + the same FD
+```
+
+`tools/test-boot.ps1` in this repository tries it and the six prepared fallbacks
+in one pass, always with `-v`, and records what each one answers. The order is
+chosen so the first line is the informative one:
+
+| # | Image | Why it is in this order |
+| --- | --- | --- |
+| 1 | `Mu-haydn-v3.img` | what the build now emits |
+| 2 | `boot-sweetstyle.img` | sweet's exact recipe: v2, 4096 pages, **the phone's own DTB**, `console=null` |
+| 3 | `boot-sweetstyle-nodtb.img` | same without the DTB, to tell "wrong header" from "missing DTB" |
+| 4-6 | `boot-v4/v3/v2-p4096.img` | the header versions on their own |
+| 7 | `boot-v1-p2048-dtb.img` | the old shape plus the DTB |
+
+If #1 is still refused, #2 is the interesting one: every field in it is copied
+from an image that is known to load on a Qualcomm ABL, so a refusal there says
+the restriction is on this bootloader rather than in the header.
+
 ### The phone dropped off USB
 
 After the variant sweep the handset stopped enumerating entirely — no
