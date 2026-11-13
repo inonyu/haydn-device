@@ -191,8 +191,14 @@ def build():
         ph(),
         # compatible[0] is hw.model/hw.target. The userland is the iPhone X
         # (D22AP); 'xiaomi,haydn' is what the platform expert matches on.
+        # 'xiaomi,sweet' has to be here literally: SweetPlatformExpert's
+        # personality in iokit/KernelConfigTables.cpp matches IONameMatch
+        # 'xiaomi,sweet' and probes with IOProbeScore 10000. Match only on
+        # 'xiaomi,haydn' and the platform expert below IOPanicPlatform is the
+        # one that wins, which is not a port.
+        #   refs/xnu-haydn/xnu/patches/0016-sweet-device-tree-platform-expert.patch
         ("compatible", cstr("D22AP") + cstr("iPhone10,3") +
-                       cstr("xiaomi,haydn") + cstr("qcom,sm8350") + cstr("AppleARM")),
+                       cstr("xiaomi,sweet") + cstr("qcom,sm8350") + cstr("AppleARM")),
         ("model", cstr("iPhone10,3")),
         ("target-type", cstr("D22")),
         ("target-sub-type", cstr("D22AP")),
