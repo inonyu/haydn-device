@@ -120,6 +120,21 @@ transfer. Always pass `-v` on this board.
 `Load Error` is the ABL refusing the image before any of our code runs, so it
 is a packaging question and not a boot-progress one.
 
+**But the same ABL fails the same way on the phone's own boot partition**, which
+is the fact that decides how much weight the line above carries:
+
+```
+$ fastboot continue
+Resuming boot   FAILED (remote: 'Failed to load image from partition: Load Error')
+```
+
+`continue` asks the boot loader to boot whatever is in `boot_a` — the stock
+Android image that boots perfectly well on a normal power cycle. It fails with
+the identical `Load Error`. So on this handset the fastboot-side load path
+rejects a known-good image too, and `Load Error` on `Mu-haydn.img` is evidence
+that **this path is restricted**, not proof that the header is wrong. Both
+explanations are still open; the v3 rebuild is what separates them.
+
 ### Why the image is the wrong shape
 
 Two files in this repository disagree, and the artifact followed the wrong one:
