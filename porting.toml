@@ -323,26 +323,37 @@ evidence = []
 
 [[area]]
 id = "packaging"
-status = "planned"
+status = "in-progress"
 components = []
 paths = [
   "board.toml",
+  "platform/haydnPkg/haydn.toml",
+  ".github/workflows/build.yml",
+  "docs/install.md",
+  "docs/uefi.md",
 ]
 inputs = [
-  "No kernel, payload or boot image has been produced on this host yet.",
   "The board's boot partition geometry and [bootimg.image] header version 3 are recorded in board.toml.",
+  "boot_a = /dev/block/sde12 and vendor_boot_a = /dev/block/sde23, read from /dev/block/by-name on the phone.",
 ]
 configuration = [
   "[bootimg.image] header_version = 3, pagesize = 4096.",
   "[payload] volume = HAYDNXNU, size_mib = 160.",
 ]
 limits = [
-  "No kernel, payload or boot image has been produced for this board.",
+  "No kernel, payload or root volume has been produced for this board. Only the UEFI volume exists.",
+  "The UEFI volume's Binaries are the venus set, so it must not be flashed; fastboot boot only.",
 ]
 next_action = [
-  "Run ./unixnu status --json and resolve every pin.",
+  "Rebuild with header_version 3 and confirm the phone's ABL accepts the image.",
+  "Then boot the volume and record where it stops. A failure is a black screen and a ten-second power-button hold.",
 ]
-evidence = []
+evidence = [
+  "CI run 13 (github.com/inonyu/haydn-device/actions/runs/43259388859): edk2 built the volume; SILICIUM_UEFI.fd = 2,097,152 bytes, FvLength 0x200000.",
+  "Mu-haydn.img from that run measured on 2026-11-13: ANDROID! header, page_size 2048, header_version 1, kernel_size 1,111,772, ramdisk_size 5.",
+  "The phone's ABL rejected it on 2026-11-13: fastboot -v boot -> 'Sending boot.img (1090 KB) OKAY' then 'Booting FAILED (remote: Failed to load/authenticate boot image: Load Error)'. Without -v fastboot prints Sending and then nothing at all, which reads like a hang and is not one.",
+  "Root cause: the CI step wrote its own haydn.toml with header_version 1 while board.toml says 3. Both copies now say 3 and check-workflows.py compares them against board.toml so it cannot drift again (commit fe46273, workflow edit 74bb285).",
+]
 
 [[area]]
 id = "diagnostics"
