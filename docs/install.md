@@ -96,8 +96,29 @@ The Google `usb_driver_r13-windows.zip` INF ships `PID_D001` and `PID_4EE7`, not
 INF in `drivers/windows/` exists for exactly that PID.
 
 **This bootloader rejects `getvar`** (`FAILED (remote: 'GetVar Variable Not
-found')` for `product`, `unlocked`, `max-download-size`, `slot-count`). Do not
-script on `fastboot getvar` here; `fastboot devices` is the only reliable probe.
+found')` for `product`, `unlocked`, `max-download-size`, `slot-count`) **and it
+also rejects `reboot-bootloader`** (`FAILED (remote: 'unknown command')`). Do not
+script on either; `fastboot devices` is the only reliable probe.
+
+**`fastboot boot` never completed (measured 2026-11-13).** Four attempts, all of
+them stopping at the same place:
+
+```
+$ fastboot boot Mu-haydn.img
+Sending 'boot.img' (1090 KB)
+<never returns>
+```
+
+It hangs in the download phase, not at the jump: the phone stayed in bootloader
+mode and kept answering `fastboot devices` after each 100-150 s timeout and
+kill. `--max-download-size` is not an option this fastboot has, so the
+"negotiate a smaller download" workaround is not available either. The host
+side of this is **unfinished**: the image is built and the driver binds, but one
+successful `fastboot boot` has not been observed on this machine.
+
+If a later attempt gets past `Sending`, the next line should be
+`Booting OKAY`, then the screen. Anything else is a different failure and
+should be recorded here with its exact output.
 
 `fastboot boot` loads the image into DDR and jumps to it. It does not write
 `boot_a`, and a power cycle puts Android back. The worst case is a black screen.
