@@ -196,6 +196,57 @@ If #1 is still refused, #2 is the interesting one: every field in it is copied
 from an image that is known to load on a Qualcomm ABL, so a refusal there says
 the restriction is on this bootloader rather than in the header.
 
+## Prior art that already boots on this exact phone
+
+Found by reading the repositories rather than by building: there are **three**
+UniXNU device repositories for `haydn` and one Sweet-route project, and one of
+them has already got further than this tree.
+
+| Repository | What it says | Last touched |
+| --- | --- | --- |
+| `xiaomi-haydn-dev/UniXNU-haydn` | `PORTING.md`: the Sweet route reached **M3 on real hardware** — XNU mounted the iOS 16.7.16 root and `launchd` ran, 2026-10-20 | 2026-10-21 |
+| `xiaomi-haydn-dev/UniXNU-haydn4` | imported from guacamole, retargeted to SM8350 | 2026-10-22 |
+| `iamOJZ/UniXNU-haydn` | UniXNU route: UEFI + DarwinBoot + 4K iOS 17, firmware and boot.img built and byte-verified, **no hardware run** | 2026-10-29 |
+
+The first row matters most: **this phone has already had XNU mount an iOS root
+and run launchd.** That is past everything in this document.
+
+### What those repositories settle, and what they cannot
+
+They settle the questions this tree was still guessing at:
+
+- **virtual timer is INTID 27**, and the physical timer is unusable — EL1 writes
+  to `CNTP_*` trap UNDEF because QHEE owns them, so XNU must use `CNTV` only.
+- **splash is `0xdfc00000 + 0x2300000`**, not the 0x1000000 this tree assumed.
+- **UFS needs `PM8350 L7` (`ldob7`, 2504-2952 mV) voted on** or the first access
+  hangs; `sweet_ufs.c` also cannot DMA above 4 GiB, so the ADT window has to sit
+  below it (the M3 notes record `0xC0000000 + 3 GiB` as the fix).
+- **IMEM restart_reason is `0x146bf000 + 0x65c`** — the register that answers the
+  "did it reset?" question this document had to infer from `sys.boot.reason`.
+- Their UEFI volume was built at `header_version = 0` and still loaded, so the
+  header version is necessary but not the whole story.
+
+They do not settle the thing this tree is stuck on: none of the three records a
+successful boot of the UniXNU payload on the phone. `iamOJZ`'s diagnostics area
+says it plainly — *"No log capture has been recorded yet."*
+
+### The one measurement nobody has
+
+All three projects list the same blocker: **a capture of `ttyMSM0` at
+115200 8N1** while `fastboot boot` runs. The vendor cmdline already enables the
+console; nobody has connected to it. `iamOJZ` wired one to host COM3 and had not
+used it yet.
+
+That is the difference between "the board reset, cause unknown" (this document,
+today) and a line number in the shim.
+
+Also worth recording, because it is the kind of thing that silently breaks a
+port: `iamOJZ`'s record carries **UFS PHY `0x1d80000`** and **12 GiB /
+`haydnpro`** inputs, both of which are the K40 Pro+ rather than this 8 GB
+K40 Pro (`AGENTS.md` in this tree documents 0x1d87000 as the correct PHY).
+Copying their numbers wholesale would reintroduce exactly the bug this
+repository was written to avoid.
+
 ## The v3 image booted (measured 2026-11-13 17:02)
 
 ```
