@@ -164,7 +164,11 @@ def build():
             ("canvas-height", u32(FB_H)),
         ])])
 
-    fbcon = node("haydn-fbcon", [
+    # The name is not cosmetic: fbcon_probe() in serial_init() does
+    # SecureDTFindEntry("name", "sweet-fbcon", ...) and bails if it misses, so
+    # "haydn-fbcon" would leave the kernel with no console at all.
+    #   refs/xnu-haydn/xnu/patches/0003-sweet-framebuffer-serial-console.patch:129
+    fbcon = node("sweet-fbcon", [
         ph(),
         ("reg", u64(FB, FB_SIZE)),
         ("width", u32(FB_W)),

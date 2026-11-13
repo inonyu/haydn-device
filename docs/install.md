@@ -274,6 +274,62 @@ writes them:
 Neither has been blamed for a failure yet; both are recorded so the next run does
 not have to rediscover that they are unverified.
 
+## The shim is finished: the whole loader ran (panel photo, 18:02)
+
+The photo of the panel after `fastboot boot shim-hold2.img` reads, line for line:
+
+```
+SHIM      haydn: xnu loader
+INITRD    lo=AF02B000 hi=AFFFE250
+PHYS      base=C0000000 size=3FE00000
+VIRT      FFFFFE0006000000
+ENTRY     FFFFFE000748C488
+SEGS      n=0000000A end=C24C4000
+BOOTARG   pa=C24C8000 top=C24CC000
+JUMP      00000000C148C488
+XNU       jumping (fbcon clears screen)
+```
+
+Every value is the one that was meant, and every stage completed:
+
+- `INITRD` is **present**, so the boot loader does hand the ramdisk over as
+  `/chosen` `linux,initrd-start/end` — that was the biggest open question;
+  `hi - lo` = 0xFD3250 = 16,592,464 bytes, i.e. the payload;
+- `PHYS base=C0000000 size=3FE00000` is the ADT window this tree chose, below the
+  4 GiB line the UFS controller needs;
+- `SEGS n=0000000A` means the ten Mach-O segments were read out of the payload;
+- `BOOTARG pa=C24C8000` means all ten were copied and `boot_args` was built;
+- `JUMP 00000000C148C488` is the kernel entry, physical.
+
+**So the shim is not the problem, and the earlier "dies in the shim" reading was
+wrong** — it was an artefact of a diagnostic that could never fire. The
+`HAYDN_HOLD` block sat *after* `loader_boot()` in `shim_main`, but on success
+`loader_boot()` jumps to the kernel and never returns, so the halt was dead code
+and the panel simply kept the last line the loader printed.
+
+### The bug the photo did expose
+
+`XNU jumping (fbcon clears screen)` was followed by nothing — no console output
+from the kernel at all, then a reset. Checking why:
+
+```c
+/* pexpert/.../serial.c, patch 0003 */
+if (SecureDTFindEntry("name", "sweet-fbcon", &entry) != kSuccess || ...)
+        return;                     /* no console at all, silently */
+```
+
+The ADT node was named `haydn-fbcon`. The name is what the kernel matches on, so
+`fbcon_probe()` returned without registering a serial device, and the kernel booted
+with **no console whatsoever**. Renamed to `sweet-fbcon`; the ADT now reads:
+
+```
+device-tree / arm-io / sweet-fbcon   (reg 0xdfc00000, 1080x2400, stride 4320)
+```
+
+The same reasoning applies to `/sweet-ufs`, which was already correct
+(`SecureDTLookupEntry(NULL, "/sweet-ufs", ...)` — an absolute path, so the node
+name matters there too).
+
 ## Prior art that already boots on this exact phone
 
 Found by reading the repositories rather than by building: there are **three**
