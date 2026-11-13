@@ -196,6 +196,55 @@ If #1 is still refused, #2 is the interesting one: every field in it is copied
 from an image that is known to load on a Qualcomm ABL, so a refusal there says
 the restriction is on this bootloader rather than in the header.
 
+## The shim: the payload path is where it dies (measured 2026-11-13 17:45)
+
+The XNU payload now exists and has been booted twice, in two builds:
+
+| Image | What it does | Result |
+| --- | --- | --- |
+| `shim-boot-haydn.img` | shim + the real XNU kernel + the haydn ADT + the phone DTB | `Booting OKAY`, then `sys.boot.reason = bootloader` |
+| `shim-prepare.img` | the same, but `-DHAYDN_PREPARE_ONLY`: prepare everything, **do not jump** | **the same** — `Booting OKAY`, then `sys.boot.reason = bootloader` |
+
+**The second row is the answer.** A build that never jumps to XNU still ends in
+the same reset, so the fault is above the jump: the shim itself, before any
+Apple code runs.
+
+### What that timing rules out
+
+The full boot takes about 88 s from the boot loader handing over to Android
+being back on adb. A Qualcomm board starting from scratch does not get from
+reset to a running Android in 88 s — the last run happened to land on a warm
+path. So the reset is **late**, which fits a fault partway through
+`loader_boot`: the payload is found, the segments are being copied, and
+something in the middle of that touches an address that is not there.
+
+### The next distinction to make
+
+`loader_boot` prints before it copies, between the two `con_skip()` calls, and
+after. Because the panel holds the last line drawn, a **stage-marked** build
+that records progress to the frame buffer after each step will say which one it
+died in:
+
+1. `INITRD` — the payload was found in the ramdisk;
+2. `PHYS/VIRT/ENTRY` — the `SWEETXNU` header parsed;
+3. `SEGS n=N` — the segment table was read;
+4. `BOOTARG` — every segment landed and `boot_args` was filled;
+5. `JUMP` — control was about to leave the shim.
+
+Nothing after `LOADER` has been seen, so the failure is at or before step 1.
+
+### Two constants still carry sweet's value
+
+Both need checking against the phone before the next run, because the shim
+writes them:
+
+- `PSHOLD = 0x0c264000` — kept from sweet without a source on this board.
+- `IMEM_RESTART_REASON = 0x146bf65c` — derived from the IMEM base in the phone's
+  FDT (`0x146bf000 + 0x65c`), but never independently confirmed.
+
+Neither has been blamed for a failure yet; both are recorded so the next run does
+not have to rediscover that they are unverified.
+
 ## Prior art that already boots on this exact phone
 
 Found by reading the repositories rather than by building: there are **three**
