@@ -196,6 +196,49 @@ If #1 is still refused, #2 is the interesting one: every field in it is copied
 from an image that is known to load on a Qualcomm ABL, so a refusal there says
 the restriction is on this bootloader rather than in the header.
 
+## The v3 image booted (measured 2026-11-13 17:02)
+
+```
+$ fastboot -v boot Mu-haydn-v3.img
+Sending 'boot.img' (1096 KB)                       OKAY [ 0.028s]
+Booting                                            OKAY [ 0.221s]
+Finished. Total time: 0.535s
+```
+
+**`Booting OKAY`.** The ABL accepted the image, authenticated it, and jumped to
+it. The v1/2048-byte image had been refused with `Load Error` on the same
+bootloader minutes earlier, so the header version was the whole difference.
+
+What happened next is also measured: the handset **left the USB bus entirely**
+within two seconds and did not come back as fastboot, adb, or any other device
+for the next 150 s. That is what a successful `fastboot boot` looks like from
+the host side — the fastboot gadget is torn down when control is handed to the
+image — but it is also what a hard hang looks like, so it does not by itself
+say the volume ran.
+
+What it does say, and this is the part that was in doubt:
+
+- the image is packaged correctly (v3, 4096-byte pages, gzip payload intact);
+- this bootloader **does** permit `fastboot boot` of a non-stock image, so the
+  earlier `Load Error` was about the image and not about a locked path;
+- the BootShim entry point was reached, because nothing else would have taken
+  the phone off the bus.
+
+### What was expected to happen next
+
+`docs/uefi.md` says the volume has no ACPI tables and no display driver, so it
+"brings the board up and stops". A stop means a black screen with no USB — the
+same host-side signature as a hang. Distinguishing them needs either a serial
+console (the loader can reach `ttyMSM0` at 115200 8N1 per the vendor cmdline) or
+a frame buffer the volume can paint to, and neither was attached.
+
+So the honest statement is: **the image booted; where it stopped is unknown.**
+
+### Getting the phone back
+
+A ten-second power-button hold returns it to Android; `fastboot boot` wrote
+nothing, so there is nothing to undo.
+
 ### Where the work stands, honestly
 
 | | State |
@@ -205,7 +248,7 @@ the restriction is on this bootloader rather than in the header.
 | Bootloader command support | measured; `getvar` and `reboot-bootloader` refused |
 | Boot image shape | **fixed**: the build now emits v3 / 4096-byte pages, verified in the artifact and enforced by `scripts/verify-volume.py` |
 | `fastboot boot` reaches the ABL | **yes**, and the ABL refuses with `Load Error` |
-| The v3 image has been tried | **no** — the phone left USB (powered off) before it could be |
+| The v3 image has been tried | **yes** — `Booting OKAY` at 17:02; see above |
 | Anything written to any partition | **no** |
 
 The single unrun step is `fastboot -v boot` on the v3 image. Everything needed
