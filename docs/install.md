@@ -66,6 +66,39 @@ interface, so the phone enumerates as `USB\VID_18D1&PID_D00D` with
 nothing. Installing that .inf needs one Administrator prompt; leaving bootloader
 mode does not need it at all (ten seconds on the power button).
 
+### What actually binds it (measured 2026-11-13)
+
+Three things have to be true, and the third is the one that costs an hour:
+
+1. **The INF must carry Google's fastboot interface GUID**,
+   `{F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}`. `fastboot.exe` enumerates devices by
+   that interface class, not by VID/PID. A locally invented GUID binds the
+   driver — Device Manager shows *Android Bootloader Interface*, status OK — and
+   `fastboot devices` still prints nothing.
+2. **The catalog must be signed by a certificate the machine trusts.** With
+   Secure Boot off (`Confirm-SecureBootUEFI` → False) a self-signed certificate
+   works: `makecat` builds `dsh_fastboot.cat` from a `.cdf`, `signtool sign /sm`
+   signs it, and the certificate goes into `LocalMachine\Root` **and**
+   `LocalMachine\TrustedPublisher`. `/sm` matters: without it signtool looks in
+   the user store and fails with *No certificates were found*.
+3. **`pnputil /add-driver … /install`** then reports
+   `驱动程序包已安装在设备上: USB\VID_18D1&PID_D00D\56db9cb7`, and
+
+   ```
+   $ fastboot devices
+   56db9cb7         fastboot
+   ```
+
+   which is the phone in bootloader mode, seen from this machine.
+
+The Google `usb_driver_r13-windows.zip` INF ships `PID_D001` and `PID_4EE7`, not
+`PID_D00D`, so installing it alone leaves this bootloader unbound — the vendor
+INF in `drivers/windows/` exists for exactly that PID.
+
+**This bootloader rejects `getvar`** (`FAILED (remote: 'GetVar Variable Not
+found')` for `product`, `unlocked`, `max-download-size`, `slot-count`). Do not
+script on `fastboot getvar` here; `fastboot devices` is the only reliable probe.
+
 `fastboot boot` loads the image into DDR and jumps to it. It does not write
 `boot_a`, and a power cycle puts Android back. The worst case is a black screen.
 

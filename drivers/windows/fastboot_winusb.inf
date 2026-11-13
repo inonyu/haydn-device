@@ -7,9 +7,13 @@
 ; Scope: exactly two hardware ids, the Android bootloader ones. Nothing else is
 ; touched. See docs/install.md for why the phone ends up in this mode.
 ;
-; Install (needs an Administrator prompt):
-;   pnputil /add-driver fastboot_winusb.inf /install
-; or right-click this file -> Install.
+; Install (needs an Administrator prompt) — see docs/install.md for the three
+; conditions that have to hold, and drivers/windows/README.md for the script:
+;   makecat fastboot.cdf; signtool sign /sm ...; pnputil /add-driver ... /install
+;
+; Dev_AddReg must carry Google's fastboot interface GUID, {F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}.
+; fastboot.exe enumerates devices by that interface class, not by VID/PID: with a
+; different GUID the driver binds and ''fastboot devices'' still prints nothing.
 
 [Version]
 Signature   = "$Windows NT$"
@@ -39,7 +43,7 @@ Needs   = WINUSB.NT.Services
 AddReg = Dev_AddReg
 
 [Dev_AddReg]
-HKR,,DeviceInterfaceGUIDs,0x10000,"{a5dcbf10-6530-11d2-901f-00c04fb951ed}"
+HKR,,DeviceInterfaceGUIDs,0x10000,"{F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}"
 
 [Strings]
 ProviderName = "haydn-device"
