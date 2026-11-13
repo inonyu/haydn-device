@@ -59,6 +59,13 @@ fastboot devices                           # must list the serial
 fastboot boot Mu-haydn.img                 # RAM only; nothing is written
 ```
 
+**On Windows the second line is where it stops**, and it stops silently: see
+`drivers/windows/README.md`. Windows has no inbox driver for the fastboot
+interface, so the phone enumerates as `USB\VID_18D1&PID_D00D` with
+`CM_PROB_FAILED_INSTALL`, and both `fastboot devices` and `adb devices` print
+nothing. Installing that .inf needs one Administrator prompt; leaving bootloader
+mode does not need it at all (ten seconds on the power button).
+
 `fastboot boot` loads the image into DDR and jumps to it. It does not write
 `boot_a`, and a power cycle puts Android back. The worst case is a black screen.
 
