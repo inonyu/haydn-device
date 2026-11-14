@@ -353,6 +353,56 @@ The same reasoning applies to `/sweet-ufs`, which was already correct
 (`SecureDTLookupEntry(NULL, "/sweet-ufs", ...)` — an absolute path, so the node
 name matters there too).
 
+## XNU boots (12:16, panel photo)
+
+With the physical-timer write NOPed the kernel not only survives
+`_fiq_context_init` — it boots. The panel carries a full early-boot log, of which
+the load-bearing lines are:
+
+```
+SWEET AMFI: built-in interface registered (XML entitlements)
+calling mpo_policy_init for vnguard
+Security policy loaded: Guarded vnode policy (vnguard)
+SWEET: starting device-tree platform expert
+SWEET: platform expert registered
+SWEET AKS: AppleKeyStore registered (no passcode, unlocked)
+SWEET WDT: IOWatchdog registered (accepts check-ins, never fires)
+SWEET SURF: IOCoreSurfaceRoot registered
+SWEET HID: buttons registered (test every 0 s)
+SWEET HID: touch registered
+SWEET BATTERY: static fallback, 100% 4200mV external=1 charging=0
+...
+VM bootstrap done; 85 maps, 165 entries and 501 holes left
+zone_init: map VM / map RO / GEN0..GEN3 / DATA / metadata / metabits
+mig_table_max_displ = 54   mach_kobj_count = 374
+```
+
+That is a kernel past the platform expert, with the Mach VM subsystem fully
+initialised: pmap windows, zone allocator maps, IPC spaces, the MIG table and 374
+Mach objects. `SWEET SURF` and `SWEET HID` registering means the IOKit graph is
+being built, and `SWEET BATTERY` reporting real-looking values means the board's
+own power path answers.
+
+### How far this is from the sibling record
+
+The sibling port (`xiaomi-haydn-dev/UniXNU-haydn PORTING.md`) recorded the Sweet
+route reaching M3 — XNU mounted the iOS 16.7.16 root and `launchd` ran. **This run
+is earlier than that**: it has no root device, so no userland. What it does
+establish, on this phone and with a measurement rather than an assumption, is
+that the whole chain below the root device works:
+
+| Stage | Evidence |
+| --- | --- |
+| boot loader accepts the image | `Booting OKAY` |
+| shim runs, finds the payload | panel: `INITRD lo/hi` in `/chosen` |
+| ten segments copied, `boot_args` built | panel: `SEGS n=A`, `BOOTARG` |
+| kernel entry reached | panel: kernel's own console output |
+| `_fiq_context_init` survives | this run (it panicked before the NOP) |
+| platform expert + VM up | this run |
+
+The next gap is `SWEET UFS`: the root device is what turns this from "XNU boots"
+into a system.
+
 ## The first kernel panic, and the instruction that caused it (12:03)
 
 With `debug=0x14e serial=3 keepsyms=1 cpus=1` the kernel printed a panic on
