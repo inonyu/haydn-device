@@ -307,6 +307,29 @@ wrong** — it was an artefact of a diagnostic that could never fire. The
 `loader_boot()` jumps to the kernel and never returns, so the halt was dead code
 and the panel simply kept the last line the loader printed.
 
+### XNU took the panel (18:09, black background, white text)
+
+After the node rename, the same boot produced a **black screen with white
+text** instead of the shim's red console. That is the kernel's own framebuffer
+console taking over: `fbcon_probe()` matched `sweet-fbcon`, called
+`ml_io_map_wcomb(0xdfc00000, ...)` and registered itself as the serial device,
+so `XNU jumping` was followed by kernel output rather than a silent reset.
+
+Two things follow, and they are both new information:
+
+1. **The kernel entry was reached and executed.** `JUMP 00000000C148C488` was not
+   the end of the story - the code at that address ran far enough to call
+   `serial_init()` and paint the panel. Before this, nothing after `JUMP` had
+   ever been observed.
+2. **The ADT is good enough to boot with.** `/chosen` (dram base/size,
+   boot-manifest-hash, security posture), `/cpus`, `/arm-io/gic` and
+   `/sweet-fbcon` are all read successfully by a real XNU before the first
+   `printf` lands.
+
+What the screen actually said was not captured, and that is the gap to close
+next: a photo of that black-and-white screen is the kernel's first words, and it
+says either which subsystem failed or how far the boot got.
+
 ### The bug the photo did expose
 
 `XNU jumping (fbcon clears screen)` was followed by nothing — no console output
@@ -329,6 +352,66 @@ device-tree / arm-io / sweet-fbcon   (reg 0xdfc00000, 1080x2400, stride 4320)
 The same reasoning applies to `/sweet-ufs`, which was already correct
 (`SecureDTLookupEntry(NULL, "/sweet-ufs", ...)` — an absolute path, so the node
 name matters there too).
+
+## The first kernel panic, and the instruction that caused it (12:03)
+
+With `debug=0x14e serial=3 keepsyms=1 cpus=1` the kernel printed a panic on
+the panel instead of the silent reset:
+
+```
+panic(cpu 0 caller 0xfffffe0007ad4504): Undefined kernel instruction:
+pc=0xfffffe0007492348, instr=d51be228 @sleh.c:951
+Nested panic detected - entry count: 2 ... 5, machine will reset or spin
+```
+
+Resolving the two addresses against the kernel's own symbol table:
+
+| Address | Symbol | Meaning |
+| --- | --- | --- |
+| `0xfffffe0007492348` | `_fiq_context_init + 0x14` | the faulting instruction |
+| `0xfffffe0007ad4504` | `_sleh_serror.cold.1` | the exception-reporting path |
+
+And the instruction at that PC, read straight out of `kernel.development.sweet`:
+
+```
+fffffe0007492340  d51be328  MSR CNTV_CTL_EL0, x8     ; enable the virtual timer
+fffffe0007492348  d51be228  MSR CNTP_CTL_EL0, x8     ; <-- UNDEF here
+fffffe000749234c  d65f03c0  ret
+```
+
+That is **the physical timer**, and `docs/hardware.md` already records why it
+cannot be touched: QHEE keeps `CNTP_*` on this SoC, so an EL1 access is UNDEF.
+The kernel was not doing anything wrong in general — `_fiq_context_init` masks
+the physical timer after enabling the virtual one, and the mask itself traps.
+
+### The patch
+
+`tools/nop-cntp.py` scans the Mach-O for every `MSR` to a physical-timer
+sysreg and replaces the word with `NOP` (`0xd503201f`). It finds the address by
+decoding instructions rather than hard-coding a file offset, so a rebuild at a
+different link base still patches the right word, and it refuses to write an
+output that still contains a trapped write.
+
+On `kernel.development.sweet` it reports exactly one:
+
+```
+fffffe0007492348  d51be228  CNTP_CTL_EL0   -> NOP
+1 write(s) patched, 0 left
+```
+
+Only one write exists in the whole image, and the kernel already reads
+`CNTVCT_EL0` (never `CNTPCT_EL0`)` — see the same scan — so nothing else in the
+timer path depends on the physical timer. The virtual timer, which the ADT
+advertises as `virtual-timer-intid 27`, is left completely alone.
+
+### What this proves about the boot
+
+The panic occurred **inside the kernel**, after `startup` had got far enough to
+initialise the FIQ context and the GIC. Combined with the console coming up, the
+sequence that is now measured end to end is: boot loader jumps to the shim, the
+shim parses `SWEETXNU`, copies ten segments, builds `boot_args`, jumps to the
+kernel entry, and the kernel runs its early init far enough to touch system
+registers and panic with a decoded fault.
 
 ## Prior art that already boots on this exact phone
 
